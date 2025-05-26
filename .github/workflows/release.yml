@@ -1,0 +1,20 @@
+on:
+  push:
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build
+        run: |
+          swift sdk install \
+            https://download.swift.org/swift-6.1.1-release/static-sdk/swift-6.1.1-RELEASE/swift-6.1.1-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz \
+            --checksum 8a69753e181e40c202465f03bcafcc898070a86817ca0f39fc808f76638e90c2
+          make
+      - name: Create release
+        run: |
+          gh release create "${{ github.sha }}" --draft --title "Draft Release"
+          gh release upload "${{ github.sha }}" output/OpenAppleMacrosServer-*
