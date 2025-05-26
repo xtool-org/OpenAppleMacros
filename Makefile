@@ -37,8 +37,10 @@ umbrella-check: umbrella-tmp
 
 umbrella-tmp:
 	@mkdir -p $(dir $(UMBRELLA_TMP))
-	@echo '// Generated with `make umbrella`. Do not modify manually.'$$'\n' > $(UMBRELLA_TMP)
+	@echo '// Generated with `make umbrella`. Do not modify manually.' > $(UMBRELLA_TMP)
+	@echo >> $(UMBRELLA_TMP)
 	@$(foreach mod,$(MACRO_MODULES),echo 'import $(mod)' >> $(UMBRELLA_TMP);)
-	@echo $$'\n''let allMacros = [' >> $(UMBRELLA_TMP)
+	@echo >> $(UMBRELLA_TMP)
+	@echo 'let allMacros = [' >> $(UMBRELLA_TMP)
 	@$(foreach mod,$(MACRO_MODULES),echo '    $(mod).all,' >> $(UMBRELLA_TMP);)
 	@echo ']' >> $(UMBRELLA_TMP)
