@@ -9,6 +9,9 @@ all: umbrella-check
 	@mkdir -p output
 	@$(MAKE) build-archs
 
+smoke: umbrella-check
+	swift build --product OpenAppleMacrosServer
+
 build-archs: $(addprefix build-arch-,$(ARCHS))
 
 build-arch-%:
