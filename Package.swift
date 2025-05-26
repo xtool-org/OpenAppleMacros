@@ -2,6 +2,21 @@
 
 import PackageDescription
 
+let macroTargets: [Target] = [
+    .target(
+        name: "SwiftUIMacros",
+        dependencies: ["OpenAppleMacrosBase"],
+    ),
+    .target(
+        name: "SwiftDataMacros",
+        dependencies: ["OpenAppleMacrosBase"],
+    ),
+]
+
+let macroDependencies = macroTargets.map {
+    Target.Dependency.byName(name: $0.name)
+}
+
 let package = Package(
     name: "OpenAppleMacros",
     platforms: [
@@ -9,35 +24,27 @@ let package = Package(
     ],
     products: [
         .executable(
-            name: "wasm-plugin-server",
-            targets: ["wasm-plugin-server"]
-        ),
-        .executable(
-            name: "SwiftUIMacros",
-            targets: ["SwiftUIMacros"]
+            name: "OpenAppleMacrosServer",
+            targets: ["OpenAppleMacrosServer"]
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-system.git", from: "1.3.2"),
-        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "601.0.0"),
-        .package(url: "https://github.com/swiftwasm/WasmKit.git", .upToNextMinor(from: "0.1.5")),
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", exact: "601.0.1"),
     ],
     targets: [
-        .executableTarget(
-            name: "SwiftUIMacros",
+        .target(
+            name: "OpenAppleMacrosBase",
             dependencies: [
                 .product(name: "SwiftSyntax", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
-                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
             ]
         ),
         .executableTarget(
-            name: "wasm-plugin-server",
+            name: "OpenAppleMacrosServer",
             dependencies: [
-                .product(name: "SystemPackage", package: "swift-system"),
-                .product(name: "WasmKitWASI", package: "WasmKit"),
+                "OpenAppleMacrosBase",
                 .product(name: "_SwiftCompilerPluginMessageHandling", package: "swift-syntax"),
-            ]
-        ),
-    ]
+            ] + macroDependencies
+        )
+    ] + macroTargets
 )

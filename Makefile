@@ -1,24 +1,31 @@
-all: macros server
+STRIP ?= strip
 
-WASM_OUT := .build/wasm32-unknown-wasi/release
+MACRO_MODULES = $(notdir $(wildcard Sources/*Macros))
 
-ALL_MACROS := SwiftUIMacros
+all: umbrella-check
+	swift build --product OpenAppleMacrosServer --swift-sdk aarch64-swift-linux-musl -c release
+	$(STRIP) .build/aarch64-swift-linux-musl/release/OpenAppleMacrosServer
+	@rm -rf output
+	@mkdir -p output
+	@cp -a .build/aarch64-swift-linux-musl/release/OpenAppleMacrosServer output/swift-plugin-server
 
-macros: $(foreach macro, $(ALL_MACROS), build-$(macro))
+UMBRELLA_FILE = Sources/OpenAppleMacrosServer/Generated/All.swift
+UMBRELLA_TMP = .build/oam-generated/Umbrella.swift
 
-build-%:
-	swift build --product $* --swift-sdk wasm32-unknown-wasi -c release
-	llvm-strip $(WASM_OUT)/$*.wasm
-	wasm-opt -Os $(WASM_OUT)/$*.wasm -o $(WASM_OUT)/$*.wasm
+umbrella: umbrella-tmp
+	@cp -a $(UMBRELLA_TMP) $(UMBRELLA_FILE)
+	@echo "Found modules: $(MACRO_MODULES)"
 
-server:
-	swift build --product wasm-plugin-server --swift-sdk aarch64-swift-linux-musl -c release -Xswiftc -Osize
-	llvm-strip .build/aarch64-swift-linux-musl/release/wasm-plugin-server
+umbrella-check: umbrella-tmp
+	@if ! cmp -s $(UMBRELLA_TMP) $(UMBRELLA_FILE); then \
+		echo "Umbrella file is out of date. Run 'make umbrella' to update it."; \
+		exit 1; \
+	fi
 
-# Usage:
-#
-# Create `wasm-plugins` directory, `mv %.wasm wasm-plugins/%.so`. Then,
-#
-# swift build --swift-sdk arm64-apple-ios \
-#   -Xswiftc -external-plugin-path
-#   -Xswiftc wasm-plugins#wasm-plugin-server
+umbrella-tmp:
+	@mkdir -p $(dir $(UMBRELLA_TMP))
+	@echo '// Generated with `make umbrella`. Do not modify manually.'$$'\n' > $(UMBRELLA_TMP)
+	@$(foreach mod,$(MACRO_MODULES),echo 'import $(mod)' >> $(UMBRELLA_TMP);)
+	@echo $$'\n''let allMacros = [' >> $(UMBRELLA_TMP)
+	@$(foreach mod,$(MACRO_MODULES),echo '    $(mod).all,' >> $(UMBRELLA_TMP);)
+	@echo ']' >> $(UMBRELLA_TMP)
