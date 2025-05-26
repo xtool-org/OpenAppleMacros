@@ -29,6 +29,9 @@ umbrella: umbrella-tmp
 umbrella-check: umbrella-tmp
 	@if ! cmp -s $(UMBRELLA_TMP) $(UMBRELLA_FILE); then \
 		echo "Umbrella file is out of date. Run 'make umbrella' to update it."; \
+		cat $(UMBRELLA_TMP); \
+		echo 'Current umbrella file:'; \
+		cat $(UMBRELLA_FILE); \
 		exit 1; \
 	fi
 
