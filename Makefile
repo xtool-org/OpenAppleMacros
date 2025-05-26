@@ -2,12 +2,19 @@ STRIP ?= strip
 
 MACRO_MODULES = $(notdir $(wildcard Sources/*Macros))
 
+ARCHS = x86_64 aarch64
+
 all: umbrella-check
-	swift build --product OpenAppleMacrosServer --swift-sdk aarch64-swift-linux-musl -c release
-	$(STRIP) .build/aarch64-swift-linux-musl/release/OpenAppleMacrosServer
 	@rm -rf output
 	@mkdir -p output
-	@cp -a .build/aarch64-swift-linux-musl/release/OpenAppleMacrosServer output/swift-plugin-server
+	@$(MAKE) build-archs
+
+build-archs: $(addprefix build-arch-,$(ARCHS))
+
+build-arch-%:
+	swift build --product OpenAppleMacrosServer --swift-sdk $*-swift-linux-musl -c release
+	$(STRIP) .build/$*-swift-linux-musl/release/OpenAppleMacrosServer
+	@cp -a .build/$*-swift-linux-musl/release/OpenAppleMacrosServer output/OpenAppleMacrosServer-$*
 
 UMBRELLA_FILE = Sources/OpenAppleMacrosServer/Generated/All.swift
 UMBRELLA_TMP = .build/oam-generated/Umbrella.swift
