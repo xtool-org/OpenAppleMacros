@@ -2,7 +2,7 @@
 
 Open source implementations of Apple SDK macros.
 
-**Note:** This package is currently WIP. It isn't integrated into xtool quite yet.
+**Note:** This package is currently WIP. See [xtool#101](https://github.com/xtool-org/xtool/pull/101)
 
 ## Usage
 
@@ -16,4 +16,4 @@ The only other caveat is that we have to replace the `lib<FOO>Macros.dylib` file
 
 The easiest way to build the server yourself is by running `make docker`.
 
-You can test out the server by replacing `darwin.artifactbundle/Developer/Platforms/*.platform/Developer/usr/bin/swift-plugin-server` with the built `output/OpenAppleMacrosServer-$(arch)`.
+You can test out the server by replacing `darwin.artifactbundle/OpenAppleMacrosServer` with the built `output/OpenAppleMacrosServer-$(arch)`.
