@@ -19,11 +19,9 @@ docker:
 docker-build:
 	docker build -t openapplemacros:latest .
 
-docker-run: $(addprefix docker-run-,$(ARCHS))
-
-docker-run-%:
-	@mkdir -p output/$*
-	docker run --rm -v ./output/$*:/src/output openapplemacros:latest make ARCHS=$*
+docker-run:
+	@mkdir -p output
+	docker run -v ./output:/src/output openapplemacros:latest make ARCHS=$(ARCHS)
 
 build-archs: $(addprefix build-arch-,$(ARCHS))
 

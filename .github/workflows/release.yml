@@ -1,18 +1,54 @@
 on:
   push:
+permissions:
+  contents: write
 jobs:
-  release:
+  build-image:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Build
-        run: make docker -j2
+      - name: Build Docker image
+        run: |
+          make docker-build
+          docker image save -o image.tar.gz openapplemacros:latest
+      - name: Upload image
+        uses: actions/upload-artifact@v4
+        with:
+          name: image
+          path: image.tar.gz
+  build-server:
+    needs: build-image
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download image
+        uses: actions/download-artifact@v4
+        with:
+          name: image
+      - name: Build server
+        run: |
+          docker image load -i image.tar.gz
+          make ARCHS=${{ matrix.arch }}
+      - name: Upload server
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-${{ matrix.arch }}
+          path: output/built/OpenAppleMacrosServer-${{ matrix.arch }}
+  create-release:
+    needs: build-server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download servers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: server-*
+          path: servers
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${{ github.sha }}" --draft --title "Draft Release"
-          gh release upload "${{ github.sha }}" output/*/built/OpenAppleMacrosServer-*
+          gh release upload "${{ github.sha }}" servers/*
