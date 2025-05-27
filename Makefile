@@ -21,7 +21,11 @@ docker-build:
 
 docker-run:
 	@mkdir -p output
-	docker run -v ./output:/src/output openapplemacros:latest make ARCHS="$(ARCHS)"
+	docker run --rm -v ./output:/src/output openapplemacros:latest make ARCHS="$(ARCHS)"
+
+docker-smoke:
+	docker build . --build-arg SMOKE=1 -t openapplemacros:smoke
+	docker run --rm openapplemacros:smoke make smoke
 
 build-archs: $(addprefix build-arch-,$(ARCHS))
 
