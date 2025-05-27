@@ -4,6 +4,10 @@ import PackageDescription
 
 let macroTargets: [Target] = [
     .target(
+        name: "PreviewsMacros",
+        dependencies: ["OpenAppleMacrosBase"],
+    ),
+    .target(
         name: "SwiftUIMacros",
         dependencies: ["OpenAppleMacrosBase"],
     ),
