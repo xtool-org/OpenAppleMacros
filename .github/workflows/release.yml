@@ -11,12 +11,13 @@ jobs:
       - name: Build Docker image
         run: |
           make docker-build
-          docker image save -o image.tar.gz openapplemacros:latest
+          docker image save openapplemacros:latest | gzip > image.tar.gz
       - name: Upload image
         uses: actions/upload-artifact@v4
         with:
           name: image
           path: image.tar.gz
+          compression-level: 0
   build-server:
     needs: build-image
     strategy:
@@ -24,6 +25,8 @@ jobs:
         arch: [x86_64, aarch64]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Download image
         uses: actions/download-artifact@v4
         with:
