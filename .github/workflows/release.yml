@@ -3,23 +3,7 @@ on:
 permissions:
   contents: write
 jobs:
-  build-image:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Build Docker image
-        run: |
-          make docker-build
-          docker image save openapplemacros:latest | gzip > image.tar.gz
-      - name: Upload image
-        uses: actions/upload-artifact@v4
-        with:
-          name: image
-          path: image.tar.gz
-          compression-level: 0
-  build-server:
-    needs: build-image
+  build:
     strategy:
       matrix:
         arch: [x86_64, aarch64]
@@ -27,21 +11,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Download image
-        uses: actions/download-artifact@v4
-        with:
-          name: image
       - name: Build server
         run: |
-          docker image load -i image.tar.gz
-          make ARCHS=${{ matrix.arch }}
+          make docker ARCHS=${{ matrix.arch }}
       - name: Upload server
         uses: actions/upload-artifact@v4
         with:
           name: server-${{ matrix.arch }}
           path: output/built/OpenAppleMacrosServer-${{ matrix.arch }}
   create-release:
-    needs: build-server
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Download servers
