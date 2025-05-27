@@ -14,7 +14,7 @@ smoke: umbrella-check
 
 docker:
 	docker build -t openapplemacros:latest .
-	docker run -v .:/src -it openapplemacros:latest make
+	docker run -v .:/src openapplemacros:latest make
 
 build-archs: $(addprefix build-arch-,$(ARCHS))
 
