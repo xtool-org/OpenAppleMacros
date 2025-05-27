@@ -5,23 +5,32 @@ MACRO_MODULES = $(notdir $(wildcard Sources/*Macros))
 ARCHS = x86_64 aarch64
 
 all: umbrella-check
-	@rm -rf output
-	@mkdir -p output
+	@rm -rf output/built
+	@mkdir -p output/built
 	@$(MAKE) build-archs
 
 smoke: umbrella-check
 	swift build --product OpenAppleMacrosServer
 
 docker:
+	@+$(MAKE) docker-build
+	@+$(MAKE) docker-run
+
+docker-build:
 	docker build -t openapplemacros:latest .
-	docker run -v .:/src openapplemacros:latest make
+
+docker-run: $(addprefix docker-run-,$(ARCHS))
+
+docker-run-%:
+	@mkdir -p output/$*
+	docker run --rm -v ./output/$*:/src/output openapplemacros:latest make ARCHS=$*
 
 build-archs: $(addprefix build-arch-,$(ARCHS))
 
 build-arch-%:
 	swift build --product OpenAppleMacrosServer --swift-sdk $*-swift-linux-musl -c release
 	$(STRIP) .build/$*-swift-linux-musl/release/OpenAppleMacrosServer
-	@cp -a .build/$*-swift-linux-musl/release/OpenAppleMacrosServer output/OpenAppleMacrosServer-$*
+	@cp -a .build/$*-swift-linux-musl/release/OpenAppleMacrosServer output/built/OpenAppleMacrosServer-$*
 
 UMBRELLA_FILE = Sources/OpenAppleMacrosServer/Generated/All.swift
 UMBRELLA_TMP = .build/oam-generated/Umbrella.swift

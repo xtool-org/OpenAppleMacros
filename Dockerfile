@@ -12,4 +12,5 @@ RUN apt-get update \
 
 ENV STRIP=llvm-strip-18
 
+ADD . /src
 WORKDIR /src
