@@ -12,6 +12,10 @@ all: umbrella-check
 smoke: umbrella-check
 	swift build --product OpenAppleMacrosServer
 
+docker:
+	docker build -t openapplemacros:latest .
+	docker run -v .:/src -it openapplemacros:latest make
+
 build-archs: $(addprefix build-arch-,$(ARCHS))
 
 build-arch-%:
