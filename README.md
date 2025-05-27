@@ -2,6 +2,8 @@
 
 Open source implementations of Apple SDK macros.
 
+**Note:** This package is currently WIP. It isn't integrated into xtool quite yet.
+
 ## Usage
 
 This package is used by [xtool](https://github.com/xtool-org/xtool): [OpenAppleMacrosServer](/Sources/OpenAppleMacrosServer) is installed into the Darwin SDK that we build.
