@@ -21,11 +21,11 @@ docker-build:
 
 docker-run:
 	@mkdir -p output
-	docker run --rm -v ./output:/src/output openapplemacros:latest make ARCHS="$(ARCHS)"
+	docker run --rm -v .:/src -v ./.build/docker:/src/.build openapplemacros:latest make ARCHS="$(ARCHS)"
 
 docker-smoke:
 	docker build . --build-arg SMOKE=1 -t openapplemacros:smoke
-	docker run --rm openapplemacros:smoke make smoke
+	docker run --rm -v .:/src -v ./.build/docker:/src/.build openapplemacros:smoke make smoke
 
 build-archs: $(addprefix build-arch-,$(ARCHS))
 
@@ -56,3 +56,6 @@ umbrella-tmp:
 	@echo 'let allMacros = [' >> $(UMBRELLA_TMP)
 	@$(foreach mod,$(MACRO_MODULES),echo '    $(mod).all,' >> $(UMBRELLA_TMP);)
 	@echo ']' >> $(UMBRELLA_TMP)
+
+clean:
+	@rm -rf .build output
