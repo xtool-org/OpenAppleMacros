@@ -1,10 +1,10 @@
-FROM swift:6.1
+FROM swift:6.3.3
 
 ARG SMOKE
 
 RUN [ "$SMOKE" = 1 ] || swift sdk install \
-    https://download.swift.org/swift-6.1.1-release/static-sdk/swift-6.1.1-RELEASE/swift-6.1.1-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz \
-    --checksum 8a69753e181e40c202465f03bcafcc898070a86817ca0f39fc808f76638e90c2
+    https://download.swift.org/swift-6.3.3-release/static-sdk/swift-6.3.3-RELEASE/swift-6.3.3-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz \
+    --checksum 87c3eaf908e67c0e13a84367119e12273cec1d2cd3d81f7d74bb36722d6b607b
 
 RUN [ "$SMOKE" = 1 ] && llvm="" || llvm="llvm-18"; \
     apt-get update \

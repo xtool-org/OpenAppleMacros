@@ -8,7 +8,7 @@ import OpenAppleMacrosBase
             connection: connection,
             messageHandler: PluginProviderMessageHandler(provider: Provider())
         )
-        listener.main()
+        try listener.main()
     }
 }
 
