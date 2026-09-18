@@ -7,6 +7,7 @@ if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
     echo "  Leave blank to run all tests in IntegrationTests"
     echo "  Set OPEN_APPLE_MACROS_TEST_JOBS to override the physical CPU count"
     echo "  Set OPEN_APPLE_MACROS_TEST_TARGET to test a deployment target"
+    echo "  Add // oam-postprocess: <command> to a fixture to filter both outputs via stdin/stdout"
     exit 1
 fi
 
@@ -28,7 +29,8 @@ function expand() {
     local frontend_ast frontend_expansion custom_ast custom_expansion
     local frontend_ast_status=0 frontend_expansion_status=0
     local custom_ast_status=0 custom_expansion_status=0
-    local frontend_output custom_output
+    local frontend_output custom_output comparison_frontend comparison_custom
+    local postprocess_line postprocess_command
 
     frontend_command="$(get_frontend_command "$1")"
     custom_command="$(echo "$frontend_command" | sed "s|$apple_plugin_server_path|$custom_plugin_server_path|g")"
@@ -41,13 +43,27 @@ function expand() {
     custom_expansion="$(eval "$custom_command -dump-macro-expansions" 2>&1)" || custom_expansion_status=$?
     custom_output="AST exit: $custom_ast_status"$'\n'"$custom_ast"$'\n'"++++++++++++"$'\n'"Expansion exit: $custom_expansion_status"$'\n'"$custom_expansion"
 
+    comparison_frontend=$frontend_output
+    comparison_custom=$custom_output
+    postprocess_line="$(grep -m 1 -E '^[[:space:]]*//[[:space:]]*oam-postprocess:' "$1" || true)"
+    postprocess_command="$(printf '%s' "$postprocess_line" | cut -d: -f2-)"
+    if [[ -n $postprocess_line ]]; then
+        if [[ ! $postprocess_command =~ [^[:space:]] ]]; then
+            echo "Empty oam-postprocess command in $1" >&2
+            return 2
+        fi
+        if ! comparison_frontend="$(printf '%s' "$comparison_frontend" | bash -o pipefail -c "cd $(dirname "$1") && $postprocess_command" oam-postprocess "$1")"; then
+            echo "oam-postprocess failed for Apple output in $1: $postprocess_command" >&2
+            return 2
+        fi
+        if ! comparison_custom="$(printf '%s' "$comparison_custom" | bash -o pipefail -c "cd $(dirname "$1") && $postprocess_command" oam-postprocess "$1")"; then
+            echo "oam-postprocess failed for custom output in $1: $postprocess_command" >&2
+            return 2
+        fi
+    fi
+
     rm -rf "$1.logs"
-    # Apple serializes some objects in varying dictionary key order,
-    # including with SWIFT_DETERMINISTIC_HASHING set. Sort JSON keys.
-    local normalized_frontend normalized_custom
-    normalized_frontend="$(printf '%s' "$frontend_output" | python3 IntegrationTests/normalize.py)"
-    normalized_custom="$(printf '%s' "$custom_output" | python3 IntegrationTests/normalize.py)"
-    if [[ "$normalized_frontend" == "$normalized_custom" ]]; then
+    if [[ "$comparison_frontend" == "$comparison_custom" ]]; then
         echo "✅ $1: pass"
         return 0
     else

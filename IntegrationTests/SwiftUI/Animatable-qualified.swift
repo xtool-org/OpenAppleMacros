@@ -1,3 +1,4 @@
+// oam-postprocess: ./Animatable-normalize.py
 import SwiftUI
 
 @SwiftUI.Animatable
