@@ -37,7 +37,8 @@ struct EntryMacro: PeerMacro, AccessorMacro {
         return [
             """
             private struct __Key_\(pattern.identifier): \(kind.keyType) {
-                static var defaultValue: \(annotation.type) { \(initializer.value) }
+                @SwiftUICore.__EntryDefaultValue
+                static var defaultValue: \(annotation.type.trimmed) = \(initializer.value.trimmed)
             }
             """
         ]
@@ -57,7 +58,23 @@ struct EntryMacro: PeerMacro, AccessorMacro {
         return [
             "get { self[__Key_\(pattern.identifier).self] }",
             "set { self[__Key_\(pattern.identifier).self] = newValue }",
+            "_modify { yield &self[__Key_\(pattern.identifier).self] }",
         ]
+    }
+}
+
+struct EntryDefaultValueMacro: AccessorMacro {
+    static func expansion(
+        of node: AttributeSyntax,
+        providingAccessorsOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [AccessorDeclSyntax] {
+        guard let varDecl = declaration.as(VariableDeclSyntax.self),
+              varDecl.bindings.count == 1,
+              let initializer = varDecl.bindings.first?.initializer else {
+            throw MacroError("'@__EntryDefaultValue' requires an initialized variable")
+        }
+        return ["get { \(initializer.value.trimmed) }"]
     }
 }
 
