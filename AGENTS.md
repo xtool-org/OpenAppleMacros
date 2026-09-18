@@ -1,0 +1,11 @@
+# OpenAppleMacros
+
+This repo is an open source implementations of proprietary Apple SDK macros.
+
+**In scope:** macros that are specific to Apple frameworks (e.g. SwiftUI, SwiftData) and are not in the open source https://swift.org toolchain distributions.
+
+**Out of scope:** macros that are already in the open source toolchains.
+
+## Testing
+
+Add fixtures to `IntegrationTests/<module>`. Then, invoke `./IntegrationTests/run.sh [dir|file]` to compare Apple's actual expansion to our reimplementation. Invoke without an argument to perform all tests.
