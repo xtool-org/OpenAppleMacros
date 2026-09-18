@@ -71,10 +71,11 @@ struct AnimatableIgnoredMacro: AccessorMacro {
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
         in context: some MacroExpansionContext
     ) throws -> [AccessorDeclSyntax] {
-        let insideAnimatable = context.lexicalContext.contains { syntax in
-            guard let group = syntax.asProtocol(DeclGroupSyntax.self) else { return false }
-            return group.attributes.contains { $0.as(AttributeSyntax.self)?.macroName == "Animatable" }
-        }
+        let enclosingType = context.lexicalContext.first { $0.asProtocol(DeclGroupSyntax.self) != nil }?
+            .asProtocol(DeclGroupSyntax.self)
+        let insideAnimatable = enclosingType?.attributes.contains {
+            $0.as(AttributeSyntax.self)?.macroName == "Animatable"
+        } ?? false
         if !insideAnimatable {
             context.diagnose(Diagnostic(node: declaration, message: AnimatableDiagnostic(
                 "'@AnimatableIgnored' macro has no effect outside of an '@Animatable' type.",

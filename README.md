@@ -4,6 +4,12 @@ Open source implementations of Apple SDK macros.
 
 **Note:** This package is currently WIP. See [xtool#101](https://github.com/xtool-org/xtool/pull/101)
 
+## Versioning policy
+
+We always track one specific version of Xcode at a time. OAM macros aim to be byte-for-byte compatible with Apple's macros in the tracked version (although we're not entirely there yet).
+
+Currently tracking: **Xcode 27.0.0 (27A266a)**.
+
 ## Usage
 
 This package is used by [xtool](https://github.com/xtool-org/xtool): [OpenAppleMacrosServer](/Sources/OpenAppleMacrosServer) is installed into the Darwin SDK that we build.
@@ -17,3 +23,7 @@ The only other caveat is that we have to replace the `lib<FOO>Macros.dylib` file
 The easiest way to build the server yourself is by running `make docker`.
 
 You can test out the server by replacing `darwin.artifactbundle/OpenAppleMacrosServer` with the built `output/OpenAppleMacrosServer-$(arch)`.
+
+## Integration tests
+
+There's a test suite of source snippets in `./IntegrationTests`. Invoking `./IntegrationTests/run.sh` will expand each snippet using 1. Apple's implementation and 2. our implementation, and check whether they're identical.

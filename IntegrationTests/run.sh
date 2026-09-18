@@ -5,8 +5,8 @@ set -euo pipefail
 if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
     echo "Usage: $0 [dir|file.swift]..."
     echo "  Leave blank to run all tests in IntegrationTests"
-    echo "  Set OPEN_APPLE_MACROS_TEST_JOBS to override the physical CPU count"
-    echo "  Set OPEN_APPLE_MACROS_TEST_TARGET to test a deployment target"
+    echo "  Set OAM_TEST_JOBS to override the physical CPU count"
+    echo "  Set OAM_TEST_TARGET to test a deployment target"
     echo "  Add // oam-postprocess: <command> to a fixture to filter both outputs via stdin/stdout"
     exit 1
 fi
@@ -17,8 +17,8 @@ apple_plugin_server_path="$(xcode-select -p)/Platforms/MacOSX.platform/Developer
 custom_plugin_server_path="$PWD/.build/debug/OpenAppleMacrosServer"
 
 function get_frontend_command() {
-    if [[ -n ${OPEN_APPLE_MACROS_TEST_TARGET:-} ]]; then
-        swiftc -target "$OPEN_APPLE_MACROS_TEST_TARGET" -color-diagnostics "$1" -driver-print-jobs | sed -n '1p'
+    if [[ -n ${OAM_TEST_TARGET:-} ]]; then
+        swiftc -target "$OAM_TEST_TARGET" -color-diagnostics "$1" -driver-print-jobs | sed -n '1p'
     else
         swiftc -color-diagnostics "$1" -driver-print-jobs | sed -n '1p'
     fi
@@ -52,11 +52,11 @@ function expand() {
             echo "Empty oam-postprocess command in $1" >&2
             return 2
         fi
-        if ! comparison_frontend="$(printf '%s' "$comparison_frontend" | bash -o pipefail -c "cd $(dirname "$1") && $postprocess_command" oam-postprocess "$1")"; then
+        if ! comparison_frontend="$(printf '%s' "$comparison_frontend" | bash -o pipefail -c "cd $(dirname "$1") && $postprocess_command")"; then
             echo "oam-postprocess failed for Apple output in $1: $postprocess_command" >&2
             return 2
         fi
-        if ! comparison_custom="$(printf '%s' "$comparison_custom" | bash -o pipefail -c "cd $(dirname "$1") && $postprocess_command" oam-postprocess "$1")"; then
+        if ! comparison_custom="$(printf '%s' "$comparison_custom" | bash -o pipefail -c "cd $(dirname "$1") && $postprocess_command")"; then
             echo "oam-postprocess failed for custom output in $1: $postprocess_command" >&2
             return 2
         fi
@@ -92,13 +92,13 @@ for path in "$@"; do
     fi
 done
 
-if [[ -n ${OPEN_APPLE_MACROS_TEST_JOBS:-} ]]; then
-    parallel_jobs=$OPEN_APPLE_MACROS_TEST_JOBS
+if [[ -n ${OAM_TEST_JOBS:-} ]]; then
+    parallel_jobs=$OAM_TEST_JOBS
 else
     parallel_jobs=$(sysctl -n hw.physicalcpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
 fi
 if [[ ! $parallel_jobs =~ ^[1-9][0-9]*$ ]]; then
-    echo "OPEN_APPLE_MACROS_TEST_JOBS must be a positive integer" >&2
+    echo "OAM_TEST_JOBS must be a positive integer" >&2
     exit 2
 fi
 
