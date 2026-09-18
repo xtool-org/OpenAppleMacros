@@ -19,4 +19,4 @@ VOLUME ["/src"]
 
 WORKDIR /src
 
-ENTRYPOINT ["/bin/bash", "-c"]
+CMD ["/bin/bash"]
