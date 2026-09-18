@@ -1,5 +1,7 @@
 import OpenAppleMacrosBase
 
-package let all: [Macro.Type] = [
-    // TODO: implement
-]
+package var all: [Macro.Type] {
+    [
+        // TODO: implement
+    ]
+}

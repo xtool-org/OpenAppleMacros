@@ -1,5 +1,7 @@
 import OpenAppleMacrosBase
 
-package let all: [Macro.Type] = [
-    EntryMacro.self,
-]
+package var all: [Macro.Type] {
+    [
+        EntryMacro.self,
+    ]
+}

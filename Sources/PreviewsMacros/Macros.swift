@@ -3,10 +3,12 @@ import OpenAppleMacrosBase
 // Stub macros to allow #Preview to compile.
 // We don't actually support viewing previews through xtool.
 
-package let all: [Macro.Type] = [
-    SwiftUIView.self,
-    Previewable.self,
-]
+package var all: [Macro.Type] {
+    [
+        SwiftUIView.self,
+        Previewable.self,
+    ]
+}
 
 struct SwiftUIView: DeclarationMacro {
     static func expansion(

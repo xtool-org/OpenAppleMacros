@@ -51,11 +51,12 @@ umbrella-tmp:
 	@mkdir -p $(dir $(UMBRELLA_TMP))
 	@echo '// Generated with `make umbrella`. Do not modify manually.' > $(UMBRELLA_TMP)
 	@echo >> $(UMBRELLA_TMP)
+	@echo 'import OpenAppleMacrosBase' >> $(UMBRELLA_TMP)
 	@$(foreach mod,$(MACRO_MODULES),echo 'import $(mod)' >> $(UMBRELLA_TMP);)
 	@echo >> $(UMBRELLA_TMP)
-	@echo 'let allMacros = [' >> $(UMBRELLA_TMP)
+	@echo 'var allMacros: [[any Macro.Type]] { [' >> $(UMBRELLA_TMP)
 	@$(foreach mod,$(MACRO_MODULES),echo '    $(mod).all,' >> $(UMBRELLA_TMP);)
-	@echo ']' >> $(UMBRELLA_TMP)
+	@echo '] }' >> $(UMBRELLA_TMP)
 
 clean:
 	@rm -rf .build output
