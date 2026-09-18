@@ -22,7 +22,8 @@ struct EntryMacro: PeerMacro, AccessorMacro {
         default:
             context.diagnose(Diagnostic(
                 node: node,
-                message: EntryDiagnostic("'@Entry' macro can only attach to var declarations inside extensions of EnvironmentValues, ContainerValues, Transaction, or FocusedValues")
+                message: EntryDiagnostic("'@Entry' macro can only attach to var declarations inside extensions of EnvironmentValues, ContainerValues, Transaction, or FocusedValues"),
+                highlights: [Syntax(declaration)]
             ))
             return []
         }
@@ -39,7 +40,8 @@ struct EntryMacro: PeerMacro, AccessorMacro {
               let pattern = binding.pattern.as(IdentifierPatternSyntax.self) else {
             context.diagnose(Diagnostic(
                 node: node,
-                message: EntryDiagnostic("'@Entry' can only be applied to a 'var' declaration with a simple name")
+                message: EntryDiagnostic("'@Entry' can only be applied to a 'var' declaration with a simple name"),
+                highlights: [Syntax(varDecl)]
             ))
             return []
         }
@@ -62,6 +64,7 @@ struct EntryMacro: PeerMacro, AccessorMacro {
             context.diagnose(Diagnostic(
                 node: pattern,
                 message: EntryDiagnostic("Property missing a default value"),
+                highlights: [Syntax(binding)],
                 fixIts: [FixIt(
                     message: EntryDiagnostic("Provide default value"),
                     changes: [.replaceText(range: position..<position, with: " = <#default value#>", in: Syntax(binding))]
@@ -113,6 +116,7 @@ private func diagnoseLet(
     context.diagnose(Diagnostic(
         node: node,
         message: EntryDiagnostic("'@Entry' can only be applied to a 'var' declaration"),
+        highlights: [Syntax(declaration)],
         fixIts: [FixIt(
             message: EntryDiagnostic("Replace 'let' with 'var'"),
             changes: [.replace(

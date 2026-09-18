@@ -16,7 +16,7 @@ apple_plugin_server_path="$(xcode-select -p)/Platforms/MacOSX.platform/Developer
 custom_plugin_server_path="$PWD/.build/debug/OpenAppleMacrosServer"
 
 function get_frontend_command() {
-    swiftc "$1" -driver-print-jobs | head -1
+    swiftc -color-diagnostics "$1" -driver-print-jobs | head -1
 }
 
 function expand() {
@@ -37,8 +37,8 @@ function expand() {
         return 0
     else
         mkdir -p "$1.logs/"
-        echo "$frontend_ast" > "$1.logs/apple.txt"
-        echo "$custom_ast" > "$1.logs/custom.txt"
+        echo "$frontend_output" > "$1.logs/apple.txt"
+        echo "$custom_output" > "$1.logs/custom.txt"
         diff "$1".logs/{apple,custom}.txt > "$1.logs/diff.txt" || true
         echo "❌ $1: fail: wrote to $1.logs/"
         return 1
