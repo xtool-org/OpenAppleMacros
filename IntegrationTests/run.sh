@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-if [[ $# -gt 1 || ${1:-} == "-h" || ${1:-} == "--help" ]]; then
-    echo "Usage: $0 [dir|file.swift]"
+if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
+    echo "Usage: $0 [dir|file.swift]..."
     echo "  Leave blank to run all tests in IntegrationTests"
     exit 1
 fi
@@ -47,7 +47,7 @@ function expand() {
 
 function expand_many() {
     did_fail=0
-    for file in $(find "$1" -name "*.swift"); do
+    for file in $(find "$@" -name "*.swift"); do
         if ! expand "$file"; then
             did_fail=1
         fi
@@ -57,8 +57,6 @@ function expand_many() {
 
 if [[ "$#" == 0 ]]; then
     expand_many IntegrationTests
-elif [[ -d "$1" ]]; then
-    expand_many "$1"
 else
-    expand "$1"
+    expand_many "$@"
 fi
