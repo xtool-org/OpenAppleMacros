@@ -9,7 +9,10 @@ let macroTargets: [Target] = [
     ),
     .target(
         name: "SwiftUIMacros",
-        dependencies: ["OpenAppleMacrosBase"],
+        dependencies: [
+            "OpenAppleMacrosBase",
+            .product(name: "SwiftDiagnostics", package: "swift-syntax"),
+        ],
     ),
     .target(
         name: "SwiftDataMacros",

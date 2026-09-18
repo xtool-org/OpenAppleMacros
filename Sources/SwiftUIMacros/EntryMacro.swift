@@ -1,4 +1,5 @@
 import OpenAppleMacrosBase
+import SwiftDiagnostics
 
 struct EntryMacro: PeerMacro, AccessorMacro {
     static func expansion(
@@ -19,26 +20,62 @@ struct EntryMacro: PeerMacro, AccessorMacro {
         case "FocusedValues", "SwiftUI.FocusedValues":
             kind = .focusedValues
         default:
-            throw MacroError("'@Entry' can only be applied to 'EnvironmentValues', 'Transaction', 'ContainerValues', or 'FocusedValues'")
+            context.diagnose(Diagnostic(
+                node: node,
+                message: EntryDiagnostic("'@Entry' macro can only attach to var declarations inside extensions of EnvironmentValues, ContainerValues, Transaction, or FocusedValues")
+            ))
+            return []
         }
 
-        guard let varDecl = declaration.as(VariableDeclSyntax.self),
-              varDecl.bindings.count == 1,
+        guard let varDecl = declaration.as(VariableDeclSyntax.self) else {
+            return []
+        }
+        if varDecl.bindingSpecifier.tokenKind == .keyword(.let) {
+            diagnoseLet(node: node, declaration: varDecl, in: context)
+            return []
+        }
+        guard varDecl.bindings.count == 1,
               let binding = varDecl.bindings.first,
-              let annotation = binding.typeAnnotation,
               let pattern = binding.pattern.as(IdentifierPatternSyntax.self) else {
-            throw MacroError("'@Entry' can only be applied to a 'var' declaration with a simple name")
+            context.diagnose(Diagnostic(
+                node: node,
+                message: EntryDiagnostic("'@Entry' can only be applied to a 'var' declaration with a simple name")
+            ))
+            return []
+        }
+
+        if kind == .focusedValues {
+            guard let optionalType = binding.typeAnnotation?.type.as(OptionalTypeSyntax.self) else {
+                throw MacroError("'@Entry' on 'FocusedValues' requires an optional type")
+            }
+            return [
+                """
+                private struct __Key_\(pattern.identifier.trimmed): \(kind.keyType) {
+                    typealias Value = \(optionalType.wrappedType.trimmed)
+                }
+                """
+            ]
         }
 
         guard let initializer = binding.initializer else {
-            throw MacroError("'@Entry' requires a default value for the variable")
+            let position = binding.endPositionBeforeTrailingTrivia
+            context.diagnose(Diagnostic(
+                node: pattern,
+                message: EntryDiagnostic("Property missing a default value"),
+                fixIts: [FixIt(
+                    message: EntryDiagnostic("Provide default value"),
+                    changes: [.replaceText(range: position..<position, with: " = <#default value#>", in: Syntax(binding))]
+                )]
+            ))
+            return []
         }
 
+        let typeAnnotation = binding.typeAnnotation.map { ": \($0.type.trimmed)" } ?? ""
         return [
             """
-            private struct __Key_\(pattern.identifier): \(kind.keyType) {
+            private struct __Key_\(pattern.identifier.trimmed): \(kind.keyType) {
                 @SwiftUICore.__EntryDefaultValue
-                static var defaultValue: \(annotation.type.trimmed) = \(initializer.value.trimmed)
+                static var defaultValue\(raw: typeAnnotation) = \(initializer.value.trimmed)
             }
             """
         ]
@@ -53,14 +90,53 @@ struct EntryMacro: PeerMacro, AccessorMacro {
               varDecl.bindings.count == 1,
               let binding = varDecl.bindings.first,
               let pattern = binding.pattern.as(IdentifierPatternSyntax.self) else {
-            throw MacroError("'@Entry' can only be applied to a 'var' declaration with a simple name")
+            return []
+        }
+        if varDecl.bindingSpecifier.tokenKind == .keyword(.let) {
+            diagnoseLet(node: node, declaration: varDecl, in: context)
+            return []
         }
         return [
-            "get { self[__Key_\(pattern.identifier).self] }",
-            "set { self[__Key_\(pattern.identifier).self] = newValue }",
-            "_modify { yield &self[__Key_\(pattern.identifier).self] }",
+            "get { self[__Key_\(pattern.identifier.trimmed).self] }",
+            "set { self[__Key_\(pattern.identifier.trimmed).self] = newValue }",
+            "_modify { yield &self[__Key_\(pattern.identifier.trimmed).self] }",
         ]
     }
+}
+
+private func diagnoseLet(
+    node: AttributeSyntax,
+    declaration: VariableDeclSyntax,
+    in context: some MacroExpansionContext
+) {
+    let token = declaration.bindingSpecifier
+    context.diagnose(Diagnostic(
+        node: node,
+        message: EntryDiagnostic("'@Entry' can only be applied to a 'var' declaration"),
+        fixIts: [FixIt(
+            message: EntryDiagnostic("Replace 'let' with 'var'"),
+            changes: [.replace(
+                oldNode: Syntax(token),
+                newNode: Syntax(TokenSyntax.keyword(
+                    .var,
+                    leadingTrivia: token.leadingTrivia,
+                    trailingTrivia: token.trailingTrivia
+                ))
+            )]
+        )]
+    ))
+}
+
+private struct EntryDiagnostic: DiagnosticMessage, FixItMessage {
+    let message: String
+
+    init(_ message: String) {
+        self.message = message
+    }
+
+    var diagnosticID: MessageID { MessageID(domain: "SwiftUIMacros", id: message) }
+    var fixItID: MessageID { diagnosticID }
+    var severity: DiagnosticSeverity { .error }
 }
 
 struct EntryDefaultValueMacro: AccessorMacro {
@@ -91,9 +167,9 @@ private enum EntryKind {
         case .transaction:
             return "SwiftUICore.TransactionKey"
         case .containerValues:
-            return "SwiftUICore.ContainerValuesKey"
+            return "SwiftUICore.ContainerValueKey"
         case .focusedValues:
-            return "SwiftUI.FocusedValuesKey"
+            return "SwiftUI.FocusedValueKey"
         }
     }
 }
