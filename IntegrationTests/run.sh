@@ -2,29 +2,107 @@
 
 set -euo pipefail
 
-if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
-    echo "Usage: $0 [dir|file.swift]..."
-    echo "  Leave blank to run all tests in IntegrationTests"
-    echo "  Set OAM_TEST_JOBS to override the physical CPU count"
-    echo "  Set OAM_TEST_TARGET to test a deployment target"
-    echo "  Add // oam-postprocess: <command> to a fixture to filter both outputs via stdin/stdout"
-    exit 1
-fi
+cd "$(dirname "$0")/.."
 
-export SWIFT_DETERMINISTIC_HASHING=1
+expected_xcode_version="$(cat .xcode-version)"
 
-apple_plugin_server_path="$(xcode-select -p)/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server"
-custom_plugin_server_path="$PWD/.build/debug/OpenAppleMacrosServer"
+developer_dir="$(xcode-select -p)"
 
-function get_frontend_command() {
-    if [[ -n ${OAM_TEST_TARGET:-} ]]; then
-        swiftc -target "$OAM_TEST_TARGET" -color-diagnostics "$1" -driver-print-jobs | sed -n '1p'
+function main() {
+    if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
+        echo "Usage: $0 [dir|file.swift]..."
+        echo "  Leave blank to run all tests in IntegrationTests"
+        echo "  Set OAM_TEST_JOBS to override the physical CPU count"
+        echo "  Set OAM_TEST_TARGET to test a deployment target"
+        echo "  Add // oam-postprocess: <command> to a fixture to filter both outputs via stdin/stdout"
+        exit 1
+    fi
+
+    if [[ "$(uname)" != "Darwin" ]]; then
+        echo "These tests are only supported on macOS" >&2
+        exit 2
+    fi
+
+    if [[ "$#" == 0 ]]; then
+        set -- IntegrationTests
+    fi
+
+    for path in "$@"; do
+        if [[ ! -e "$path" ]]; then
+            echo "No such test path: $path" >&2
+            exit 2
+        fi
+    done
+
+    xcode_path="$(dirname "$(dirname "$developer_dir")")"
+    if [[ "$xcode_path" != *".app" ]]; then
+        echo "Xcode path does not appear to be an app bundle: $xcode_path" >&2
+        exit 2
+    fi
+    version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$xcode_path/Contents/version.plist")"
+    if [[ "$(echo "$version" | cut -d "." -f3)" == "" ]]; then
+        # normalize 26.1 to 26.1.0 (semver)
+        version="$version.0"
+    fi
+    if [[ "$version" != "$expected_xcode_version" ]]; then
+        echo "Xcode version mismatch: expected '$expected_xcode_version', got '$version'" >&2
+        if [[ -n ${OAM_IGNORE_XCODE_VERSION:-} ]]; then
+            echo "Running anyway due to OAM_IGNORE_XCODE_VERSION=1" >&2
+        else
+            echo "Set OAM_IGNORE_XCODE_VERSION=1 to run anyway" >&2
+            exit 2
+        fi
+    fi
+    echo "Testing with Xcode $version at $xcode_path"
+
+    if [[ -n ${OAM_TEST_JOBS:-} ]]; then
+        parallel_jobs=$OAM_TEST_JOBS
     else
-        swiftc -color-diagnostics "$1" -driver-print-jobs | sed -n '1p'
+        parallel_jobs=$(sysctl -n hw.physicalcpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
+    fi
+    if [[ ! $parallel_jobs =~ ^[1-9][0-9]*$ ]]; then
+        echo "OAM_TEST_JOBS must be a positive integer" >&2
+        exit 2
+    fi
+
+    files=()
+    while IFS= read -r -d '' file; do
+        duplicate=0
+        for existing in "${files[@]-}"; do
+            if [[ "$existing" == "$file" ]]; then
+                duplicate=1
+                break
+            fi
+        done
+        if [[ "$duplicate" == 0 ]]; then
+            files+=("$file")
+        fi
+    done < <(find "$@" -type f -name '*.swift' -print0)
+
+    if [[ ${#files[@]} == 0 ]]; then
+        echo "No Swift test files found" >&2
+        exit 2
+    fi
+
+    xcrun swift build --product OpenAppleMacrosServer
+
+    test_label=test
+    if [[ ${#files[@]} != 1 ]]; then
+        test_label=tests
+    fi
+    echo "Running ${#files[@]} $test_label with up to $parallel_jobs workers"
+    if printf '%s\0' "${files[@]}" | xargs -0 -n 1 -P "$parallel_jobs" "$0" --worker; then
+        exit 0
+    else
+        exit 1
     fi
 }
 
-function expand() {
+function worker() {
+    export SWIFT_DETERMINISTIC_HASHING=1
+
+    local oam_target_flags
+    local apple_plugin_server_path custom_plugin_server_path
     local frontend_command custom_command
     local frontend_ast frontend_expansion custom_ast custom_expansion
     local frontend_ast_status=0 frontend_expansion_status=0
@@ -32,7 +110,16 @@ function expand() {
     local frontend_output custom_output comparison_frontend comparison_custom
     local postprocess_line postprocess_command
 
-    frontend_command="$(get_frontend_command "$1")"
+    if [[ -n ${OAM_TEST_TARGET:-} ]]; then
+        oam_target_flags="-target $OAM_TEST_TARGET"
+    else
+        oam_target_flags=""
+    fi
+
+    apple_plugin_server_path="$developer_dir/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server"
+    custom_plugin_server_path="$PWD/.build/debug/OpenAppleMacrosServer"
+
+    frontend_command="$(xcrun swiftc $oam_target_flags -color-diagnostics -driver-print-jobs "$1" | sed -n '1p')"
     custom_command="$(echo "$frontend_command" | sed "s|$apple_plugin_server_path|$custom_plugin_server_path|g")"
 
     frontend_ast="$(eval "$frontend_command -print-ast" 2>&1)" || frontend_ast_status=$?
@@ -77,60 +164,7 @@ function expand() {
 }
 
 if [[ ${1:-} == "--worker" ]]; then
-    expand "$2"
-    exit $?
-fi
-
-if [[ "$#" == 0 ]]; then
-    set -- IntegrationTests
-fi
-
-for path in "$@"; do
-    if [[ ! -e "$path" ]]; then
-        echo "No such test path: $path" >&2
-        exit 2
-    fi
-done
-
-if [[ -n ${OAM_TEST_JOBS:-} ]]; then
-    parallel_jobs=$OAM_TEST_JOBS
+    worker "$2"
 else
-    parallel_jobs=$(sysctl -n hw.physicalcpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
-fi
-if [[ ! $parallel_jobs =~ ^[1-9][0-9]*$ ]]; then
-    echo "OAM_TEST_JOBS must be a positive integer" >&2
-    exit 2
-fi
-
-files=()
-while IFS= read -r -d '' file; do
-    duplicate=0
-    for existing in "${files[@]-}"; do
-        if [[ "$existing" == "$file" ]]; then
-            duplicate=1
-            break
-        fi
-    done
-    if [[ "$duplicate" == 0 ]]; then
-        files+=("$file")
-    fi
-done < <(find "$@" -type f -name '*.swift' -print0)
-
-if [[ ${#files[@]} == 0 ]]; then
-    echo "No Swift test files found" >&2
-    exit 2
-fi
-
-swiftc -print-target-info | jq -r .compilerVersion
-swift build --product OpenAppleMacrosServer
-
-test_label=test
-if [[ ${#files[@]} != 1 ]]; then
-    test_label=tests
-fi
-echo "Running ${#files[@]} $test_label with up to $parallel_jobs workers"
-if printf '%s\0' "${files[@]}" | xargs -0 -n 1 -P "$parallel_jobs" "$0" --worker; then
-    exit 0
-else
-    exit 1
+    main "$@"
 fi
