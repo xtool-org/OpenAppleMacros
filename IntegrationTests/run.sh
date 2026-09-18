@@ -6,14 +6,21 @@ if [[ ${1:-} == "-h" || ${1:-} == "--help" ]]; then
     echo "Usage: $0 [dir|file.swift]..."
     echo "  Leave blank to run all tests in IntegrationTests"
     echo "  Set OPEN_APPLE_MACROS_TEST_JOBS to override the physical CPU count"
+    echo "  Set OPEN_APPLE_MACROS_TEST_TARGET to test a deployment target"
     exit 1
 fi
+
+export SWIFT_DETERMINISTIC_HASHING=1
 
 apple_plugin_server_path="$(xcode-select -p)/Platforms/MacOSX.platform/Developer/usr/bin/swift-plugin-server"
 custom_plugin_server_path="$PWD/.build/debug/OpenAppleMacrosServer"
 
 function get_frontend_command() {
-    swiftc -color-diagnostics "$1" -driver-print-jobs | sed -n '1p'
+    if [[ -n ${OPEN_APPLE_MACROS_TEST_TARGET:-} ]]; then
+        swiftc -target "$OPEN_APPLE_MACROS_TEST_TARGET" -color-diagnostics "$1" -driver-print-jobs | sed -n '1p'
+    else
+        swiftc -color-diagnostics "$1" -driver-print-jobs | sed -n '1p'
+    fi
 }
 
 function expand() {
@@ -35,7 +42,12 @@ function expand() {
     custom_output="AST exit: $custom_ast_status"$'\n'"$custom_ast"$'\n'"++++++++++++"$'\n'"Expansion exit: $custom_expansion_status"$'\n'"$custom_expansion"
 
     rm -rf "$1.logs"
-    if [[ "$frontend_output" == "$custom_output" ]]; then
+    # Apple serializes some objects in varying dictionary key order,
+    # including with SWIFT_DETERMINISTIC_HASHING set. Sort JSON keys.
+    local normalized_frontend normalized_custom
+    normalized_frontend="$(printf '%s' "$frontend_output" | python3 IntegrationTests/normalize.py)"
+    normalized_custom="$(printf '%s' "$custom_output" | python3 IntegrationTests/normalize.py)"
+    if [[ "$normalized_frontend" == "$normalized_custom" ]]; then
         echo "✅ $1: pass"
         return 0
     else
