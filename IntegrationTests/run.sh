@@ -150,12 +150,12 @@ function worker() {
     fi
 
     rm -rf "$1.logs"
+    mkdir -p "$1.logs/"
+    printf '%s\n' "$frontend_output" > "$1.logs/apple.txt"
     if [[ "$comparison_frontend" == "$comparison_custom" ]]; then
         echo "✅ $1: pass"
         return 0
     else
-        mkdir -p "$1.logs/"
-        printf '%s\n' "$frontend_output" > "$1.logs/apple.txt"
         printf '%s\n' "$custom_output" > "$1.logs/custom.txt"
         diff "$1".logs/{apple,custom}.txt > "$1.logs/diff.txt" || true
         echo "❌ $1: fail: wrote to $1.logs/"

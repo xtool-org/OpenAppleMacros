@@ -27,3 +27,84 @@ You can test out the server by replacing `darwin.artifactbundle/OpenAppleMacrosS
 ## Integration tests
 
 There's a test suite of source snippets in `./IntegrationTests`. Invoking `./IntegrationTests/run.sh` will expand each snippet using 1. Apple's implementation and 2. our implementation, and check whether they're identical.
+
+## Status
+
+Implementation is partially complete. PRs are welcome; AI agents are quite good at adding coverage.
+
+Legend:
+
+- ✅ = fully supported
+- 🌗 = partially supported
+- ❌ = not yet supported
+
+### ❌ AppIntents
+
+AppIntents also emits extra metadata via `appintentsmetadataprocessor`, so implementing support will require
+more than just the macros.
+
+| Macro | Status | Notes |
+| - | - | - |
+| `@AppEntity` | ❌ | |
+| `@AppEnum` | ❌ | |
+| `@AppIntent` | ❌ | |
+| `@AssistantEntity` | ❌ | |
+| `@AssistantEnum` | ❌ | |
+| `@AssistantIntent` | ❌ | |
+| `@ComputedProperty` | ❌ | |
+| `@DeferredProperty` | ❌ | |
+| `@UnionValue` | ❌ | |
+
+### ❌ FoundationModels
+
+| Macro | Status | Notes |
+| - | - | - |
+| `@Generable` | ❌ | |
+| `@Guide` | ❌ | |
+| `@SessionPropertyEntry` | ❌ | |
+
+### 🌗 Previews
+
+Applies to `AppKit`, `SwiftUI`, `UIKit`, `WidgetKit`
+
+| Macro | Status | Notes |
+| - | - | - |
+| `@Preview` | 🌗 | Expands to empty output |
+| `@Previewable` | 🌗 | Expands to empty output |
+
+### ❌ StateReporting
+
+| Macro | Status | Notes |
+| - | - | - |
+| `@ReportableMetadata` | ❌ | |
+| `@ReportableMetadataIgnored` | ❌ | |
+| `@ReportableMetadataKey` | ❌ | |
+
+### ❌ SwiftData
+
+| Macro | Status | Notes |
+| - | - | - |
+| `@Attribute` | ❌ | |
+| `@Index` | ❌ | |
+| `@Model` | ❌ | |
+| `@ModelActor` | ❌ | |
+| `@Query` | ❌ | |
+| `@Relationship` | ❌ | |
+| `@Transient` | ❌ | |
+| `@Unique` | ❌ | |
+
+### ✅ SwiftUI
+
+| Macro | Status | Notes |
+| - | - | - |
+| `@Animatable` | ✅ | |
+| `@AnimatableIgnored` | ✅ | |
+| `@Entry` | ✅ | |
+| `@State` | ✅ | |
+
+### ❌ TipKit
+
+| Macro | Status | Notes |
+| - | - | - |
+| `@Parameter` | ❌ | |
+| `@Rule` | ❌ | |
