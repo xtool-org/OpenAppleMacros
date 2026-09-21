@@ -4,6 +4,13 @@ import PackageDescription
 
 let macroTargets: [Target] = [
     .target(
+        name: "FoundationModelsMacros",
+        dependencies: [
+            "OpenAppleMacrosBase",
+            .product(name: "SwiftDiagnostics", package: "swift-syntax"),
+        ],
+    ),
+    .target(
         name: "PreviewsMacros",
         dependencies: ["OpenAppleMacrosBase"],
     ),

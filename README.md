@@ -55,13 +55,13 @@ more than just the macros.
 | `@DeferredProperty` | ❌ | |
 | `@UnionValue` | ❌ | |
 
-### ❌ FoundationModels
+### ✅ FoundationModels
 
 | Macro | Status | Notes |
 | - | - | - |
-| `@Generable` | ❌ | |
-| `@Guide` | ❌ | |
-| `@SessionPropertyEntry` | ❌ | |
+| `@Generable` | ✅ | |
+| `@Guide` | ✅ | |
+| `@SessionPropertyEntry` | ✅ | |
 
 ### 🌗 Previews
 
