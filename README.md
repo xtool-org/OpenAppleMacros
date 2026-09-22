@@ -2,8 +2,6 @@
 
 Open source implementations of Apple SDK macros.
 
-**Note:** This package is currently WIP. See [xtool#101](https://github.com/xtool-org/xtool/pull/101)
-
 ## Versioning policy
 
 We always track one specific version of Xcode at a time. OAM macros aim to be byte-for-byte compatible with Apple's macros in the tracked version (although we're not entirely there yet).
