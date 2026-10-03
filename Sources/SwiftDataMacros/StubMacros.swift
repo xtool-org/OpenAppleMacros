@@ -1,7 +1,7 @@
 import OpenAppleMacrosBase
 import SwiftDiagnostics
 
-struct UniqueConstraintsMacro: FreestandingMacro {
+struct UniqueConstraintsMacro: DeclarationMacro {
     static func expansion(
         of node: some FreestandingMacroExpansionSyntax,
         in context: some MacroExpansionContext
@@ -10,7 +10,7 @@ struct UniqueConstraintsMacro: FreestandingMacro {
     }
 }
 
-struct IndexMacro: FreestandingMacro {
+struct IndexMacro: DeclarationMacro {
     static func expansion(
         of node: some FreestandingMacroExpansionSyntax,
         in context: some MacroExpansionContext
@@ -26,7 +26,18 @@ struct PersistentModelActorMacro: MemberMacro, ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        return []
+        return [
+            """
+            nonisolated let modelExecutor: any SwiftData.ModelExecutor
+            nonisolated let modelContainer: SwiftData.ModelContainer
+
+            init(modelContainer: SwiftData.ModelContainer) {
+                let modelContext = ModelContext(modelContainer)
+                self.modelExecutor = DefaultSerialModelExecutor(modelContext: modelContext)
+                self.modelContainer = modelContainer
+            }
+            """
+        ]
     }
 
     static func expansion(
@@ -36,7 +47,10 @@ struct PersistentModelActorMacro: MemberMacro, ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
-        return []
+        let name = type.trimmed
+        return [
+            try ExtensionDeclSyntax("extension \(name): SwiftData.ModelActor {\n}")
+        ]
     }
 }
 
@@ -46,7 +60,20 @@ struct QueryMacro: AccessorMacro, PeerMacro {
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
         in context: some MacroExpansionContext
     ) throws -> [AccessorDeclSyntax] {
-        return []
+        guard let variable = declaration.as(VariableDeclSyntax.self),
+              variable.bindings.count == 1,
+              let binding = variable.bindings.first,
+              let identifier = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier else {
+            return []
+        }
+        let name = identifier.trimmed.text
+        return [
+            """
+            get {
+                _\(raw: name).wrappedValue
+            }
+            """
+        ]
     }
 
     static func expansion(
@@ -54,25 +81,23 @@ struct QueryMacro: AccessorMacro, PeerMacro {
         providingPeersOf declaration: some DeclSyntaxProtocol,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        return []
-    }
-}
-
-struct TransformablePersistedPropertyMacro: AccessorMacro, PeerMacro {
-    static func expansion(
-        of node: AttributeSyntax,
-        providingAccessorsOf declaration: some DeclSyntaxProtocol,
-        in context: some MacroExpansionContext
-    ) throws -> [AccessorDeclSyntax] {
-        return try PersistedPropertyMacro.expansion(of: node, providingAccessorsOf: declaration, in: context)
-    }
-
-    static func expansion(
-        of node: AttributeSyntax,
-        providingPeersOf declaration: some DeclSyntaxProtocol,
-        in context: some MacroExpansionContext
-    ) throws -> [DeclSyntax] {
-        return try PersistedPropertyMacro.expansion(of: node, providingPeersOf: declaration, in: context)
+        guard let variable = declaration.as(VariableDeclSyntax.self),
+              variable.bindings.count == 1,
+              let binding = variable.bindings.first,
+              let identifier = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier,
+              let type = binding.typeAnnotation?.type.trimmed else {
+            return []
+        }
+        let name = identifier.trimmed.text
+        let arguments: String
+        if case .argumentList(let list) = node.arguments {
+            arguments = list.trimmedDescription
+        } else {
+            arguments = ""
+        }
+        return [
+            "private(set) var _\(raw: name): SwiftData.Query<\(raw: type).Element, \(raw: type)> = .init(\(raw: arguments))"
+        ]
     }
 }
 

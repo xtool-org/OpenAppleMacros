@@ -9,21 +9,60 @@ struct PersistentModelMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        guard let klass = declaration.as(ClassDeclSyntax.self) else {
-            context.diagnose(Diagnostic(
-                node: node,
-                message: SwiftDataDiagnostic("'@Model' can only be applied to a class")
-            ))
+        // Enumerations are ignored entirely.
+        if declaration.is(EnumDeclSyntax.self) {
             return []
         }
-        let name = klass.name.trimmed.text
-        let properties = persistedProperties(of: declaration)
 
-        let schemaEntries = properties.map { property in
-            let defaultValue = property.initializer ?? "nil"
-            let metadata = property.metadata ?? "nil"
-            return "    SwiftData.Schema.PropertyMetadata(name: \"\(property.name)\", keypath: \\\(name).\(property.name), defaultValue: \(defaultValue), metadata: \(metadata))"
-        }.joined(separator: ",\n")
+        let name = typeName(of: declaration)
+        let misuseKind: String?
+        if let klass = declaration.as(ClassDeclSyntax.self) {
+            misuseKind = klass.classSpecifier.tokenKind == .keyword(.actor) ? "actor" : nil
+        } else if declaration.is(StructDeclSyntax.self) {
+            misuseKind = "struct"
+        } else {
+            misuseKind = nil
+        }
+        if let misuseKind {
+            context.diagnose(Diagnostic(
+                node: node,
+                message: SwiftDataDiagnostic("'@Model' cannot be applied to \(misuseKind) type '\(name)'")
+            ))
+        }
+        if !hasExplicitInitializer(declaration) {
+            context.diagnose(Diagnostic(
+                node: node,
+                message: SwiftDataDiagnostic("@Model requires an initializer be provided for '\(name)'")
+            ))
+        }
+
+        let isFinalClass = declaration.is(ClassDeclSyntax.self)
+            && declaration.modifiers.contains { $0.name.tokenKind == .keyword(.final) }
+        let requiredPrefix = isFinalClass ? "" : "required "
+        let publicPrefix = declaration.modifiers.contains { $0.name.tokenKind == .keyword(.public) } ? "public " : ""
+
+        let properties = persistedProperties(of: declaration)
+        let extraMetadata = extraSchemaProperties(of: declaration)
+
+        var schemaBody: String
+        if extraMetadata.isEmpty {
+            let schemaEntries = properties.map { property in
+                "    SwiftData.Schema.PropertyMetadata(name: \"\(property.name)\", keypath: \\\(name).\(property.name), defaultValue: \(property.initializer ?? "nil"), metadata: \(property.metadata ?? "nil"))"
+            }.joined(separator: ",\n")
+            schemaBody = "  return [\n\(schemaEntries)\n  ]"
+        } else {
+            let schemaEntries = properties.map { property in
+                "    SwiftData.Schema.PropertyMetadata(name: \"\(property.name)\", keypath: \\\(name).\(property.name), defaultValue: \(property.initializer ?? "nil"), metadata: \(property.metadata ?? "nil"))"
+            }.joined(separator: ",\n")
+            schemaBody = """
+              let storedProperties = [
+            \(schemaEntries)
+              ]
+              var otherProperties = [SwiftData.Schema.PropertyMetadata]()
+            \(extraMetadata)
+              return storedProperties + otherProperties
+            """
+        }
 
         let initAssignments = properties.map { property in
             "  _\(property.name) = _SwiftDataNoType()"
@@ -44,14 +83,12 @@ struct PersistentModelMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
             }
             """,
             """
-            class var schemaMetadata: [SwiftData.Schema.PropertyMetadata] {
-              return [
-            \(raw: schemaEntries)
-              ]
+            \(raw: publicPrefix)class var schemaMetadata: [SwiftData.Schema.PropertyMetadata] {
+            \(raw: schemaBody)
             }
             """,
             """
-            init(backingData: any SwiftData.BackingData<\(raw: name)>) {
+            \(raw: requiredPrefix)\(raw: publicPrefix)init(backingData: any SwiftData.BackingData<\(raw: name)>) {
             \(raw: initAssignments)
               self.persistentBackingData = backingData
             }
@@ -98,7 +135,6 @@ struct PersistentModelMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
-        guard declaration.is(ClassDeclSyntax.self) else { return [] }
         let name = type.trimmed
         return [
             try ExtensionDeclSyntax("extension \(name): nonisolated SwiftData.PersistentModel {\n}"),
@@ -119,18 +155,59 @@ struct SwiftDataProperty {
     var name: String
     var initializer: String?
     var metadata: String?
-    var typeAnnotation: TypeSyntax?
+}
+
+func typeName(of declaration: some DeclGroupSyntax) -> String {
+    if let named = declaration.as(NamedDeclSyntax.self) {
+        return named.name.trimmed.text
+    }
+    return "_"
+}
+
+private func hasExplicitInitializer(_ declaration: some DeclGroupSyntax) -> Bool {
+    declaration.memberBlock.members.contains { member in
+        member.decl.is(InitializerDeclSyntax.self)
+    }
+}
+
+/// Emits the `#Unique`/`#Index` entries for the `otherProperties` section, if any.
+private func extraSchemaProperties(of declaration: some DeclGroupSyntax) -> [String] {
+    var entries: [String] = []
+    for member in declaration.memberBlock.members {
+        guard let expansion = member.decl.as(MacroExpansionDeclSyntax.self) else { continue }
+        let macroName = unbackticked(expansion.macro.trimmed.description)
+        let kind: String
+        switch macroName {
+        case "Unique", "SwiftData.Unique":
+            kind = "Unique"
+        case "Index", "SwiftData.Index":
+            kind = "Index"
+        default:
+            continue
+        }
+        let genericArguments = expansion.genericParameterClause.map { "\($0.trimmed)" } ?? ""
+        let arguments = expansion.arguments.trimmedDescription
+        let metadata = "SwiftData.Schema.\(kind)\(genericArguments)(\(arguments))"
+        entries.append(
+            """
+              if #available(macOS 15, iOS 18, tvOS 18, watchOS 11, visionOS 2, *) {
+                otherProperties.append(
+                  SwiftData.Schema.PropertyMetadata(name: "SwiftData.Schema.\(kind)", keypath: \\SwiftData.Schema.encodingVersion, defaultValue: nil, metadata: \(metadata)))
+              }
+            """
+        )
+    }
+    return entries
 }
 
 func persistedProperties(of declaration: some DeclGroupSyntax) -> [SwiftDataProperty] {
     var properties: [SwiftDataProperty] = []
     for member in declaration.memberBlock.members {
-        for property in storedProperties(in: member) where !hasTransientAttribute(property.variable) {
+        for property in storedVariables(in: member) where !hasTransientAttribute(property.variable) {
             properties.append(.init(
                 name: unbackticked(property.name),
                 initializer: property.binding.initializer.map { $0.value.trimmed.description },
-                metadata: schemaMetadata(of: property.variable),
-                typeAnnotation: property.binding.typeAnnotation?.type.trimmed
+                metadata: schemaMetadata(of: property.variable)
             ))
         }
     }
@@ -143,7 +220,7 @@ private struct StoredVariable {
     var name: String
 }
 
-private func storedProperties(in member: some SyntaxProtocol) -> [StoredVariable] {
+private func storedVariables(in member: some SyntaxProtocol) -> [StoredVariable] {
     guard let variable = member.as(VariableDeclSyntax.self),
           !variable.modifiers.contains(where: {
               $0.name.tokenKind == .keyword(.static) || $0.name.tokenKind == .keyword(.class)
@@ -155,17 +232,16 @@ private func storedProperties(in member: some SyntaxProtocol) -> [StoredVariable
     }
 }
 
-private func isPersistedProperty(_ member: some SyntaxProtocol) -> Bool {
+func isPersistedProperty(_ member: some SyntaxProtocol) -> Bool {
     guard let variable = member.as(VariableDeclSyntax.self),
-          variable.bindingSpecifier.tokenKind == .keyword(.var),
           !variable.modifiers.contains(where: {
               $0.name.tokenKind == .keyword(.static) || $0.name.tokenKind == .keyword(.class)
           }),
           !hasTransientAttribute(variable),
-          variable.bindings.count == 1,
-          let binding = variable.bindings.first,
-          binding.accessorBlock == nil,
-          binding.pattern.is(IdentifierPatternSyntax.self) else { return false }
+          !variable.bindings.isEmpty,
+          variable.bindings.allSatisfy({ binding in
+              binding.accessorBlock == nil && binding.pattern.is(IdentifierPatternSyntax.self)
+          }) else { return false }
     return true
 }
 
