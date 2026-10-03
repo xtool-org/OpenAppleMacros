@@ -171,7 +171,8 @@ private func isPersistedProperty(_ member: some SyntaxProtocol) -> Bool {
 
 private func hasTransientAttribute(_ variable: VariableDeclSyntax) -> Bool {
     variable.attributes.contains(where: { attribute in
-        unbackticked(attribute.attributeName.trimmed.description) == "Transient"
+        guard let attribute = attribute.as(AttributeSyntax.self) else { return false }
+        return unbackticked(attribute.attributeName.trimmed.description) == "Transient"
     })
 }
 
