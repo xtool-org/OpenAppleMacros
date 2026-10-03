@@ -41,6 +41,8 @@ struct PersistentModelMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
         let requiredPrefix = isFinalClass ? "" : "required "
         let publicPrefix = declaration.modifiers.contains { $0.name.tokenKind == .keyword(.public) } ? "public " : ""
 
+        diagnoseTransientDefaults(declaration, in: context)
+
         let properties = persistedProperties(of: declaration)
         let extraMetadata = extraSchemaProperties(of: declaration)
 
@@ -56,10 +58,10 @@ struct PersistentModelMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
             }.joined(separator: ",\n")
             schemaBody = """
               let storedProperties = [
-            \(schemaEntries)
+            \(raw: schemaEntries)
               ]
               var otherProperties = [SwiftData.Schema.PropertyMetadata]()
-            \(extraMetadata)
+            \(raw: extraMetadata.joined(separator: "\n"))
               return storedProperties + otherProperties
             """
         }
@@ -170,6 +172,36 @@ private func hasExplicitInitializer(_ declaration: some DeclGroupSyntax) -> Bool
     }
 }
 
+private func diagnoseTransientDefaults(
+    _ declaration: some DeclGroupSyntax,
+    in context: some MacroExpansionContext
+) {
+    for member in declaration.memberBlock.members {
+        guard let variable = member.decl.as(VariableDeclSyntax.self),
+              variable.bindingSpecifier.tokenKind == .keyword(.var),
+              !variable.modifiers.contains(where: {
+                  $0.name.tokenKind == .keyword(.static) || $0.name.tokenKind == .keyword(.class)
+              }),
+              let transientAttribute = variable.attributes.compactMap({ $0.as(AttributeSyntax.self) }).first(where: {
+                  unbackticked($0.attributeName.trimmed.description) == "Transient"
+              }) else { continue }
+        for binding in variable.bindings {
+            guard binding.accessorBlock == nil,
+                  binding.initializer == nil,
+                  let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier else { continue }
+            let type = binding.typeAnnotation?.type.trimmed
+            let isOptional = type?.as(OptionalTypeSyntax.self) != nil
+                || type?.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) != nil
+            if !isOptional {
+                context.diagnose(Diagnostic(
+                    node: transientAttribute,
+                    message: SwiftDataDiagnostic("@Transient requires non-optional property '\(name.trimmed.text)' to have a default value")
+                ))
+            }
+        }
+    }
+}
+
 /// Emits the `#Unique`/`#Index` entries for the `otherProperties` section, if any.
 private func extraSchemaProperties(of declaration: some DeclGroupSyntax) -> [String] {
     var entries: [String] = []
@@ -220,8 +252,8 @@ private struct StoredVariable {
     var name: String
 }
 
-private func storedVariables(in member: some SyntaxProtocol) -> [StoredVariable] {
-    guard let variable = member.as(VariableDeclSyntax.self),
+private func storedVariables(in member: MemberBlockItemSyntax) -> [StoredVariable] {
+    guard let variable = member.decl.as(VariableDeclSyntax.self),
           !variable.modifiers.contains(where: {
               $0.name.tokenKind == .keyword(.static) || $0.name.tokenKind == .keyword(.class)
           }) else { return [] }
