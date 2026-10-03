@@ -58,10 +58,10 @@ struct PersistentModelMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
             }.joined(separator: ",\n")
             schemaBody = """
               let storedProperties = [
-            \(raw: schemaEntries)
+            \(schemaEntries)
               ]
               var otherProperties = [SwiftData.Schema.PropertyMetadata]()
-            \(raw: extraMetadata.joined(separator: "\n"))
+            \(extraMetadata.joined(separator: "\n"))
               return storedProperties + otherProperties
             """
         }
