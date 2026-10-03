@@ -16,8 +16,8 @@ struct PersistentModelMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
 
         let name = typeName(of: declaration)
         let misuseKind: String?
-        if let klass = declaration.as(ClassDeclSyntax.self) {
-            misuseKind = klass.classKeyword.text == "actor" ? "actor" : nil
+        if declaration.is(ActorDeclSyntax.self) {
+            misuseKind = "actor"
         } else if declaration.is(StructDeclSyntax.self) {
             misuseKind = "struct"
         } else {
@@ -222,8 +222,7 @@ private func extraSchemaProperties(of declaration: some DeclGroupSyntax) -> [Str
         let metadata = "SwiftData.Schema.\(kind)\(genericArguments)(\(arguments))"
         entries.append(
             """
-              var otherProperties = [SwiftData.Schema.PropertyMetadata]()
-
+            
               if #available(macOS 15, iOS 18, tvOS 18, watchOS 11, visionOS 2, *) {
                 otherProperties.append(
                   SwiftData.Schema.PropertyMetadata(name: "SwiftData.Schema.\(kind)", keypath: \\SwiftData.Schema.encodingVersion, defaultValue: nil, metadata: \(metadata)))
