@@ -62,7 +62,7 @@ private func accessors(of declaration: some DeclSyntaxProtocol, transformable: B
     let name = property.name
     let read = transformable ? "getTransformableValue" : "getValue"
     let write = transformable ? "setTransformableValue" : "setValue"
-    var accessors = [
+    var accessors: [AccessorDeclSyntax] = [
         """
         @storageRestrictions(accesses: _$backingData, initializes: _\(raw: name))
         init(initialValue) {
