@@ -29,6 +29,7 @@ struct PersistentModelActorMacro: MemberMacro, ExtensionMacro {
         return [
             """
             nonisolated let modelExecutor: any SwiftData.ModelExecutor
+
             nonisolated let modelContainer: SwiftData.ModelContainer
 
             init(modelContainer: SwiftData.ModelContainer) {

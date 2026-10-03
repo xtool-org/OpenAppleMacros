@@ -17,7 +17,7 @@ struct PersistentModelMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
         let name = typeName(of: declaration)
         let misuseKind: String?
         if let klass = declaration.as(ClassDeclSyntax.self) {
-            misuseKind = klass.classKeyword.tokenKind == .keyword(.actor) ? "actor" : nil
+            misuseKind = klass.classKeyword.text == "actor" ? "actor" : nil
         } else if declaration.is(StructDeclSyntax.self) {
             misuseKind = "struct"
         } else {
@@ -25,13 +25,13 @@ struct PersistentModelMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
         }
         if let misuseKind {
             context.diagnose(Diagnostic(
-                node: node,
+                node: declaration,
                 message: SwiftDataDiagnostic("'@Model' cannot be applied to \(misuseKind) type '\(name)'")
             ))
         }
         if !hasExplicitInitializer(declaration) {
             context.diagnose(Diagnostic(
-                node: node,
+                node: declaration,
                 message: SwiftDataDiagnostic("@Model requires an initializer be provided for '\(name)'")
             ))
         }
@@ -194,7 +194,7 @@ private func diagnoseTransientDefaults(
                 || type?.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) != nil
             if !isOptional {
                 context.diagnose(Diagnostic(
-                    node: transientAttribute,
+                    node: variable,
                     message: SwiftDataDiagnostic("@Transient requires non-optional property '\(name.trimmed.text)' to have a default value")
                 ))
             }
@@ -222,6 +222,8 @@ private func extraSchemaProperties(of declaration: some DeclGroupSyntax) -> [Str
         let metadata = "SwiftData.Schema.\(kind)\(genericArguments)(\(arguments))"
         entries.append(
             """
+              var otherProperties = [SwiftData.Schema.PropertyMetadata]()
+
               if #available(macOS 15, iOS 18, tvOS 18, watchOS 11, visionOS 2, *) {
                 otherProperties.append(
                   SwiftData.Schema.PropertyMetadata(name: "SwiftData.Schema.\(kind)", keypath: \\SwiftData.Schema.encodingVersion, defaultValue: nil, metadata: \(metadata)))
@@ -235,13 +237,13 @@ private func extraSchemaProperties(of declaration: some DeclGroupSyntax) -> [Str
 func persistedProperties(of declaration: some DeclGroupSyntax) -> [SwiftDataProperty] {
     var properties: [SwiftDataProperty] = []
     for member in declaration.memberBlock.members {
-        for property in storedVariables(in: member) where !hasTransientAttribute(property.variable) {
-            properties.append(.init(
-                name: unbackticked(property.name),
-                initializer: property.binding.initializer.map { $0.value.trimmed.description },
-                metadata: schemaMetadata(of: property.variable)
-            ))
-        }
+        guard let property = storedVariables(in: member).first,
+              !hasTransientAttribute(property.variable) else { continue }
+        properties.append(.init(
+            name: unbackticked(property.name),
+            initializer: property.binding.initializer.map { $0.value.trimmed.description },
+            metadata: schemaMetadata(of: property.variable)
+        ))
     }
     return properties
 }
@@ -300,10 +302,10 @@ private func schemaMetadata(of variable: VariableDeclSyntax) -> String? {
         let arguments: String
         if case .argumentList(let list) = attribute.arguments {
             arguments = list.trimmedDescription
+            return "\(macroName)(\(arguments))"
         } else {
-            arguments = ""
+            return "\(macroName) ()"
         }
-        return "\(macroName)(\(arguments))"
     }
     return nil
 }
