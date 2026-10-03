@@ -64,7 +64,7 @@ struct TransformablePersistedPropertyMacro: AccessorMacro, PeerMacro {
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
         in context: some MacroExpansionContext
     ) throws -> [AccessorDeclSyntax] {
-        return PersistedPropertyMacro.expansion(of: node, providingAccessorsOf: declaration, in: context)
+        return try PersistedPropertyMacro.expansion(of: node, providingAccessorsOf: declaration, in: context)
     }
 
     static func expansion(
@@ -72,7 +72,7 @@ struct TransformablePersistedPropertyMacro: AccessorMacro, PeerMacro {
         providingPeersOf declaration: some DeclSyntaxProtocol,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        return PersistedPropertyMacro.expansion(of: node, providingPeersOf: declaration, in: context)
+        return try PersistedPropertyMacro.expansion(of: node, providingPeersOf: declaration, in: context)
     }
 }
 
