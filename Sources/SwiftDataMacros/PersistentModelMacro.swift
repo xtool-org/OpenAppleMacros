@@ -17,7 +17,7 @@ struct PersistentModelMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
         let name = typeName(of: declaration)
         let misuseKind: String?
         if let klass = declaration.as(ClassDeclSyntax.self) {
-            misuseKind = klass.classSpecifier.tokenKind == .keyword(.actor) ? "actor" : nil
+            misuseKind = klass.classKeyword.tokenKind == .keyword(.actor) ? "actor" : nil
         } else if declaration.is(StructDeclSyntax.self) {
             misuseKind = "struct"
         } else {
