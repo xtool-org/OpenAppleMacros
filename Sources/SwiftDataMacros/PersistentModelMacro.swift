@@ -220,15 +220,27 @@ private func extraSchemaProperties(of declaration: some DeclGroupSyntax) -> [Str
         let genericArguments = expansion.genericArgumentClause.map { "\($0.trimmed)" } ?? ""
         let arguments = expansion.arguments.trimmedDescription
         let metadata = "SwiftData.Schema.\(kind)\(genericArguments)(\(arguments))"
-        entries.append(
-            """
-            
+        let availabilityBlock: String
+        if kind == "Unique" {
+            // Apple places the blank line before the availability check for `#Unique`.
+            availabilityBlock = """
+
               if #available(macOS 15, iOS 18, tvOS 18, watchOS 11, visionOS 2, *) {
                 otherProperties.append(
                   SwiftData.Schema.PropertyMetadata(name: "SwiftData.Schema.\(kind)", keypath: \\SwiftData.Schema.encodingVersion, defaultValue: nil, metadata: \(metadata)))
               }
             """
-        )
+        } else {
+            // ...and after it for `#Index`.
+            availabilityBlock = """
+              if #available(macOS 15, iOS 18, tvOS 18, watchOS 11, visionOS 2, *) {
+                otherProperties.append(
+                  SwiftData.Schema.PropertyMetadata(name: "SwiftData.Schema.\(kind)", keypath: \\SwiftData.Schema.encodingVersion, defaultValue: nil, metadata: \(metadata)))
+              }
+            
+            """
+        }
+        entries.append(availabilityBlock)
     }
     return entries
 }
