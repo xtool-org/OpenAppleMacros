@@ -170,9 +170,9 @@ private func isPersistedProperty(_ member: some SyntaxProtocol) -> Bool {
 }
 
 private func hasTransientAttribute(_ variable: VariableDeclSyntax) -> Bool {
-    variable.attributes.contains { attribute in
+    variable.attributes.contains(where: { attribute in
         unbackticked(attribute.attributeName.trimmed.description) == "Transient"
-    }
+    })
 }
 
 private func schemaMetadata(of variable: VariableDeclSyntax) -> String? {
