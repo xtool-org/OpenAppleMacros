@@ -150,7 +150,7 @@ private func storedProperties(in member: some SyntaxProtocol) -> [StoredVariable
           }) else { return [] }
     return variable.bindings.compactMap { binding in
         guard binding.accessorBlock == nil,
-              let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier else { return [] }
+              let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier else { return nil }
         return StoredVariable(variable: variable, binding: binding, name: name.text)
     }
 }
