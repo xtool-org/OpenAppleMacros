@@ -158,7 +158,7 @@ struct SwiftDataProperty {
 }
 
 func typeName(of declaration: some DeclGroupSyntax) -> String {
-    if let named = declaration.as(NamedDeclSyntax.self) {
+    if let named = declaration.asProtocol(NamedDeclSyntax.self) {
         return named.name.trimmed.text
     }
     return "_"
@@ -185,7 +185,7 @@ private func extraSchemaProperties(of declaration: some DeclGroupSyntax) -> [Str
         default:
             continue
         }
-        let genericArguments = expansion.genericParameterClause.map { "\($0.trimmed)" } ?? ""
+        let genericArguments = expansion.genericArgumentClause.map { "\($0.trimmed)" } ?? ""
         let arguments = expansion.arguments.trimmedDescription
         let metadata = "SwiftData.Schema.\(kind)\(genericArguments)(\(arguments))"
         entries.append(
