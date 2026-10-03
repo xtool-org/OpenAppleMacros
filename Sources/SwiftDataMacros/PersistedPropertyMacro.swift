@@ -12,16 +12,16 @@ struct PersistedPropertyMacro: AccessorMacro, PeerMacro {
             """
             @storageRestrictions(accesses: _$backingData, initializes: _\(raw: name))
             init(initialValue) {
-                _$backingData.setValue(forKey: \.\(raw: name), to: initialValue)
+                _$backingData.setValue(forKey: \\.\(raw: name), to: initialValue)
                 _\(raw: name) = _SwiftDataNoType()
             }
             get {
-                _$observationRegistrar.access(self, keyPath: \.\(raw: name))
-                return self.getValue(forKey: \.\(raw: name))
+                _$observationRegistrar.access(self, keyPath: \\.\(raw: name))
+                return self.getValue(forKey: \\.\(raw: name))
             }
             set {
-                _$observationRegistrar.withMutation(of: self, keyPath: \.\(raw: name)) {
-                    self.setValue(forKey: \.\(raw: name), to: newValue)
+                _$observationRegistrar.withMutation(of: self, keyPath: \\.\(raw: name)) {
+                    self.setValue(forKey: \\.\(raw: name), to: newValue)
                 }
             }
             """,
