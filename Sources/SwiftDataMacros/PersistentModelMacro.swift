@@ -236,7 +236,7 @@ private func extraSchemaProperties(of declaration: some DeclGroupSyntax) -> Stri
     if blocks.isEmpty {
         return nil
     }
-    var result = blocks.joined(separator: "\n\n")
+    var result = blocks.joined(separator: "\n")
     if indexBlocks.isEmpty {
         result = "\n" + result
     }
