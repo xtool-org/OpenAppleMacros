@@ -46,24 +46,24 @@ struct PersistentModelMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
         let properties = persistedProperties(of: declaration)
         let extraMetadata = extraSchemaProperties(of: declaration)
 
-        var schemaBody: String
-        if extraMetadata.isEmpty {
-            let schemaEntries = properties.map { property in
+        func schemaEntries() -> String {
+            properties.map { property in
                 "    SwiftData.Schema.PropertyMetadata(name: \"\(property.name)\", keypath: \\\(name).\(property.name), defaultValue: \(property.initializer ?? "nil"), metadata: \(property.metadata ?? "nil"))"
             }.joined(separator: ",\n")
-            schemaBody = "  return [\n\(schemaEntries)\n  ]"
-        } else {
-            let schemaEntries = properties.map { property in
-                "    SwiftData.Schema.PropertyMetadata(name: \"\(property.name)\", keypath: \\\(name).\(property.name), defaultValue: \(property.initializer ?? "nil"), metadata: \(property.metadata ?? "nil"))"
-            }.joined(separator: ",\n")
+        }
+
+        let schemaBody: String
+        if let extraMetadata {
             schemaBody = """
               let storedProperties = [
-            \(schemaEntries)
+            \(schemaEntries())
               ]
               var otherProperties = [SwiftData.Schema.PropertyMetadata]()
-            \(extraMetadata.joined(separator: "\n"))
+            \(extraMetadata)
               return storedProperties + otherProperties
             """
+        } else {
+            schemaBody = "  return [\n\(schemaEntries())\n  ]"
         }
 
         let initAssignments = properties.map { property in
@@ -203,46 +203,53 @@ private func diagnoseTransientDefaults(
 }
 
 /// Emits the `#Unique`/`#Index` entries for the `otherProperties` section, if any.
-private func extraSchemaProperties(of declaration: some DeclGroupSyntax) -> [String] {
-    var entries: [String] = []
-    for member in declaration.memberBlock.members {
-        guard let expansion = member.decl.as(MacroExpansionDeclSyntax.self) else { continue }
-        let macroName = unbackticked(expansion.macro.trimmed.description)
-        let kind: String
-        switch macroName {
-        case "Unique", "SwiftData.Unique":
-            kind = "Unique"
-        case "Index", "SwiftData.Index":
-            kind = "Index"
-        default:
-            continue
-        }
+/// Apple emits `#Index` blocks first, then `#Unique`, with a blank line after each
+/// `#Index` block and before the first `#Unique` block.
+private func extraSchemaProperties(of declaration: some DeclGroupSyntax) -> String? {
+    func availabilityBlock(kind: String, expansion: MacroExpansionDeclSyntax) -> String {
         let genericArguments = expansion.genericArgumentClause.map { "\($0.trimmed)" } ?? ""
         let arguments = expansion.arguments.trimmedDescription
         let metadata = "SwiftData.Schema.\(kind)\(genericArguments)(\(arguments))"
-        let availabilityBlock: String
-        if kind == "Unique" {
-            // Apple places the blank line before the availability check for `#Unique`.
-            availabilityBlock = """
-
-              if #available(macOS 15, iOS 18, tvOS 18, watchOS 11, visionOS 2, *) {
-                otherProperties.append(
-                  SwiftData.Schema.PropertyMetadata(name: "SwiftData.Schema.\(kind)", keypath: \\SwiftData.Schema.encodingVersion, defaultValue: nil, metadata: \(metadata)))
-              }
-            """
-        } else {
-            // ...and after it for `#Index`.
-            availabilityBlock = """
-              if #available(macOS 15, iOS 18, tvOS 18, watchOS 11, visionOS 2, *) {
-                otherProperties.append(
-                  SwiftData.Schema.PropertyMetadata(name: "SwiftData.Schema.\(kind)", keypath: \\SwiftData.Schema.encodingVersion, defaultValue: nil, metadata: \(metadata)))
-              }
-            
-            """
-        }
-        entries.append(availabilityBlock)
+        return """
+          if #available(macOS 15, iOS 18, tvOS 18, watchOS 11, visionOS 2, *) {
+            otherProperties.append(
+              SwiftData.Schema.PropertyMetadata(name: "SwiftData.Schema.\(kind)", keypath: \\SwiftData.Schema.encodingVersion, defaultValue: nil, metadata: \(metadata)))
+          }
+        """
     }
-    return entries
+
+    var indexBlocks: [String] = []
+    var uniqueBlocks: [String] = []
+    for member in declaration.memberBlock.members {
+        guard let expansion = member.decl.as(MacroExpansionDeclSyntax.self) else { continue }
+        let macroName = unbackticked(expansion.macro.trimmed.description)
+        switch macroName {
+        case "Unique", "SwiftData.Unique":
+            uniqueBlocks.append(availabilityBlock(kind: "Unique", expansion: expansion))
+        case "Index", "SwiftData.Index":
+            indexBlocks.append(availabilityBlock(kind: "Index", expansion: expansion))
+        default:
+            continue
+        }
+    }
+    let blocks = indexBlocks + uniqueBlocks
+    if blocks.isEmpty {
+        return nil
+    }
+    var result = ""
+    for (index, block) in blocks.enumerated() {
+        if index > 0 {
+            result += "\n"
+        }
+        result += block + "\n"
+    }
+    if indexBlocks.isEmpty {
+        result = "\n" + result
+    }
+    if uniqueBlocks.isEmpty {
+        result += "\n"
+    }
+    return result
 }
 
 func persistedProperties(of declaration: some DeclGroupSyntax) -> [SwiftDataProperty] {
