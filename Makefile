@@ -31,8 +31,8 @@ build-archs: $(addprefix build-arch-,$(ARCHS))
 
 build-arch-%:
 	swift build --product OpenAppleMacrosServer --swift-sdk $*-swift-linux-musl -c release
-	$(STRIP) .build/$*-swift-linux-musl/release/OpenAppleMacrosServer
-	@cp -a .build/$*-swift-linux-musl/release/OpenAppleMacrosServer output/built/OpenAppleMacrosServer-$*
+	$(STRIP) .build/out/Products/Release-staticlinux-$*/OpenAppleMacrosServer
+	@cp -a .build/out/Products/Release-staticlinux-$*/OpenAppleMacrosServer output/built/OpenAppleMacrosServer-$*
 
 UMBRELLA_FILE = Sources/OpenAppleMacrosServer/Generated/All.swift
 UMBRELLA_TMP = .build/oam-generated/Umbrella.swift
