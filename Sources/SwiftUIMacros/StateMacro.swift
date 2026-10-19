@@ -64,10 +64,11 @@ struct StateMacro: PeerMacro, AccessorMacro {
         }
         // The helper macro receives the getter expression as base64 to preserve its source text.
         let initialStoredValueEncoded = Data(initialStoredGetter.utf8).base64EncodedString()
+        let stateExpression = ExprSyntax("\(raw: state)")
 
         return [
             "private var __\(raw: name) = \(raw: storage)",
-            "@SwiftUICore._StatePropertyWrapperStorage(initialValue: \"\(raw: initialStoredNameEncoded)\")\nprivate var _\(raw: name): SwiftUICore.State<_>! = SwiftUICore._stateNil(of: {\n        \(raw: state)\n    })",
+            "@SwiftUICore._StatePropertyWrapperStorage(initialValue: \"\(raw: initialStoredNameEncoded)\")\nprivate var _\(raw: name): SwiftUICore.State<_>! = SwiftUICore._stateNil(of: {\n        \(stateExpression)\n    })",
             """
             @SwiftUICore._StateProjectedValue
             private var $\(raw: name) = \(raw: state).projectedValue

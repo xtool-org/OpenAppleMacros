@@ -1,4 +1,3 @@
-import Foundation
 import OpenAppleMacrosBase
 import SwiftDiagnostics
 
@@ -792,8 +791,7 @@ private func availabilityPrefix(of declaration: some DeclGroupSyntax) -> String 
 }
 
 private func swiftStringLiteral(_ value: String) -> String {
-    let data = try! JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed])
-    return String(decoding: data, as: UTF8.self)
+    StringLiteralExprSyntax(content: value).description
 }
 
 private func uppercasingFirst(_ value: String) -> String {
