@@ -21,10 +21,6 @@ let macroTargets: [Target] = [
             .product(name: "SwiftDiagnostics", package: "swift-syntax"),
         ],
     ),
-    .target(
-        name: "SwiftDataMacros",
-        dependencies: ["OpenAppleMacrosBase"],
-    ),
 ]
 
 let macroDependencies = macroTargets.map {
