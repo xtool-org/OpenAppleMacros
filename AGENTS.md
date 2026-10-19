@@ -40,4 +40,4 @@ macro Preview(<snip>) = #externalMacro(module: "PreviewsMacros", type: "SwiftUIV
 
 referring to the `PreviewsMacros.SwiftUIView` macro in `libPreviewsMacros.dylib`.
 
-If the environment has access to reverse-engineering tools (like Hopper MCP), use those to be thorough.
+If the environment has access to reverse-engineering tools (like Hopper MCP), use those to be thorough. **IMPORTANT:** checked in code MUST be clean-room. Reverse engineering tools may only be used by sub-agents, and the sub-agents should communicate back via documentation artifacts, never actual code.
