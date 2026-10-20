@@ -1,12 +1,9 @@
-STRIP ?= strip
+OBJCOPY ?= llvm-objcopy
+ARCHS ?= x86_64 aarch64
 
 MACRO_MODULES = $(notdir $(wildcard Sources/*Macros))
 
-ARCHS = x86_64 aarch64
-
 all: umbrella-check
-	@rm -rf output/built
-	@mkdir -p output/built
 	@$(MAKE) build-archs
 
 smoke: umbrella-check
@@ -29,13 +26,34 @@ docker-smoke:
 
 build-archs: $(addprefix build-arch-,$(ARCHS))
 
-build-arch-%:
+build-arch-%: build-info build-server-%
+	@rm -f output/OpenAppleMacrosServer-$*.tar.gz
+	@mkdir -p output
+	COPYFILE_DISABLE=1 tar czf output/OpenAppleMacrosServer-$*.tar.gz \
+		-C $(abspath tmp/info) info.json \
+		-C $(abspath tmp/server-$*) OpenAppleMacrosServer
+
+build-info:
+	@rm -rf tmp/info
+	@mkdir -p tmp/info
+	@{ \
+		printf '{"plugins":['; \
+		separator=''; \
+		for module in $(MACRO_MODULES); do \
+			printf '%s"%s"' "$$separator" "$$module"; \
+			separator=','; \
+		done; \
+		printf ']}\n'; \
+	} > tmp/info/info.json
+
+build-server-%:
+	@rm -rf tmp/server-$*
+	@mkdir -p tmp/server-$*
 	swift build --product OpenAppleMacrosServer --swift-sdk $*-swift-linux-musl -c release
-	$(STRIP) .build/out/Products/Release-staticlinux-$*/OpenAppleMacrosServer
-	@cp -a .build/out/Products/Release-staticlinux-$*/OpenAppleMacrosServer output/built/OpenAppleMacrosServer-$*
+	$(OBJCOPY) --strip-all .build/out/Products/Release-staticlinux-$*/OpenAppleMacrosServer tmp/server-$*/OpenAppleMacrosServer
 
 UMBRELLA_FILE = Sources/OpenAppleMacrosServer/Generated/All.swift
-UMBRELLA_TMP = .build/oam-generated/Umbrella.swift
+UMBRELLA_TMP = tmp/oam-generated/Umbrella.swift
 
 umbrella: umbrella-tmp
 	@cp -a $(UMBRELLA_TMP) $(UMBRELLA_FILE)
@@ -59,4 +77,4 @@ umbrella-tmp:
 	@echo '] }' >> $(UMBRELLA_TMP)
 
 clean:
-	@rm -rf .build output
+	@rm -rf .build output tmp

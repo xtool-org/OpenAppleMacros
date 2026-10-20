@@ -20,7 +20,7 @@ The only other caveat is that we have to replace the `lib<FOO>Macros.dylib` file
 
 The easiest way to build the server yourself is by running `make docker`.
 
-You can test out the server by replacing `darwin.artifactbundle/OpenAppleMacrosServer` with the built `output/OpenAppleMacrosServer-$(arch)`.
+You can test out the server by replacing `darwin.artifactbundle/OpenAppleMacrosServer` with the `OpenAppleMacrosServer` binary in the corresponding `output/OpenAppleMacrosServer-<arch>.tar.gz`
 
 ## Integration tests
 
