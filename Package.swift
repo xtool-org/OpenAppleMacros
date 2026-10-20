@@ -47,6 +47,7 @@ let package = Package(
             dependencies: [
                 .product(name: "SwiftSyntax", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+                .product(name: "_SwiftCompilerPluginMessageHandling", package: "swift-syntax"),
             ]
         ),
         .executableTarget(

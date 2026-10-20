@@ -1,4 +1,3 @@
-import Foundation
 import OpenAppleMacrosBase
 
 struct StateMacro: PeerMacro, AccessorMacro {
@@ -49,7 +48,7 @@ struct StateMacro: PeerMacro, AccessorMacro {
 
         // Private state uses lazy backing storage and forwards initialization through helper macros.
         let initialStoredName = context.makeUniqueName("_initialStoredValue_").text
-        let initialStoredNameEncoded = Data(initialStoredName.utf8).base64EncodedString()
+        let initialStoredNameEncoded = initialStoredName.utf8.base64EncodedString()
         let storage: String
         let initialStoredValue: String
         let initialStoredGetter: String
@@ -63,7 +62,7 @@ struct StateMacro: PeerMacro, AccessorMacro {
             initialStoredGetter = storage
         }
         // The helper macro receives the getter expression as base64 to preserve its source text.
-        let initialStoredValueEncoded = Data(initialStoredGetter.utf8).base64EncodedString()
+        let initialStoredValueEncoded = initialStoredGetter.utf8.base64EncodedString()
         let stateExpression = ExprSyntax("\(raw: state)")
 
         return [
@@ -146,10 +145,11 @@ struct StatePropertyWrapperStorageMacro: AccessorMacro {
     ) throws -> [AccessorDeclSyntax] {
         guard let name = statePropertyName(declaration),
               let encodedName = node.stateStringArgument,
-              let nameData = Data(base64Encoded: encodedName),
-              let initialStoredName = String(data: nameData, encoding: .utf8) else {
+              let nameBytes = [UInt8](base64EncodedString: encodedName) else {
             return []
         }
+        let initialStoredName = String(decoding: nameBytes, as: UTF8.self)
+        guard initialStoredName.utf8.elementsEqual(nameBytes) else { return [] }
         let storage = "__\(name.dropFirst())"
         return [
             """
@@ -181,10 +181,11 @@ struct StateInitialStoredValueMacro: AccessorMacro {
         in context: some MacroExpansionContext
     ) throws -> [AccessorDeclSyntax] {
         guard let encoded = node.stateStringArgument,
-              let data = Data(base64Encoded: encoded),
-              let expression = String(data: data, encoding: .utf8) else {
+              let bytes = [UInt8](base64EncodedString: encoded) else {
             return []
         }
+        let expression = String(decoding: bytes, as: UTF8.self)
+        guard expression.utf8.elementsEqual(bytes) else { return [] }
         return ["get { \(raw: expression) }"]
     }
 }
