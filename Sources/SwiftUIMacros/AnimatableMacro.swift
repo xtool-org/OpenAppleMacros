@@ -1,4 +1,3 @@
-import Foundation
 import OpenAppleMacrosBase
 import SwiftDiagnostics
 
@@ -27,12 +26,12 @@ struct AnimatableValuesMacro: MemberMacro, ExtensionMacro {
 
         let name = context.makeUniqueName("_animatableData").text
         let file = context.location(of: node, at: .afterLeadingTrivia, filePathMode: .filePath)?.file.description ?? "\"\""
-        let payload: [String: Any] = [
-            "animatableDataName": name,
-            "fileName": file,
-            "varDecls": properties.map { ["name": $0.name, "line": $0.line] },
-        ]
-        let json = String(data: try JSONSerialization.data(withJSONObject: payload, options: [.fragmentsAllowed]), encoding: .utf8)!
+        let payload = AnimatableContext(
+            animatableDataName: name,
+            fileName: file,
+            varDecls: properties.map { ["name": $0.name, "line": $0.line] }
+        )
+        let json = String(decoding: try JSON.encode(payload), as: UTF8.self)
 
         return [
             """
@@ -109,14 +108,15 @@ private func dataPropertyExpansion(
     pair: Bool
 ) throws -> [DeclSyntax] {
         guard let string = node.arguments.first?.expression.as(StringLiteralExprSyntax.self),
-              case .stringSegment(let segment) = string.segments.first,
-              let data = segment.content.text.data(using: .utf8),
-              let payload = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let name = payload["animatableDataName"] as? String,
-              let file = payload["fileName"] as? String,
-              let properties = payload["varDecls"] as? [[String: String]] else {
+              case .stringSegment(let segment) = string.segments.first else {
             return []
         }
+        let payload = try Array(segment.content.text.utf8).withUnsafeBufferPointer {
+            try JSON.decode(AnimatableContext.self, from: $0)
+        }
+        let name = payload.animatableDataName
+        let file = payload.fileName
+        let properties = payload.varDecls
         let lines = properties.compactMap { property -> String? in
             guard let name = property["name"], let line = property["line"] else { return nil }
             return """
@@ -250,6 +250,12 @@ struct InvalidAnimatablePropertyMacro: ExpressionMacro {
         ]))
         return "EmptyAnimatableData.self"
     }
+}
+
+private struct AnimatableContext: Codable {
+    let animatableDataName: String
+    let fileName: String
+    let varDecls: [[String: String]]
 }
 
 private struct AnimatableProperty {
