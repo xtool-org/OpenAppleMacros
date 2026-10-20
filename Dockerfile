@@ -11,8 +11,6 @@ RUN apt-get update \
         make \
     && rm -rf /var/lib/apt/lists/*
 
-ENV STRIP="llvm-objcopy --strip-all"
-
 VOLUME ["/src"]
 
 WORKDIR /src
