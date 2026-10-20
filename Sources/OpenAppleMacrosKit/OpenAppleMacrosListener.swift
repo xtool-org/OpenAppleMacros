@@ -1,14 +1,34 @@
 @_spi(PluginMessage) import SwiftCompilerPluginMessageHandling
 import OpenAppleMacrosBase
 
-@main enum Server {
-    static func main() throws {
-        let connection = try StandardIOMessageConnection()
+public struct OpenAppleMacrosListener {
+    let connection: StandardIOMessageConnection
+
+    public init(inputFileDescriptor: CInt, outputFileDescriptor: CInt) {
+        self.connection = StandardIOMessageConnection(
+            inputFileDescriptor: inputFileDescriptor,
+            outputFileDescriptor: outputFileDescriptor
+        )
+    }
+
+    public init() throws {
+        self.connection = try StandardIOMessageConnection()
+    }
+
+    public func main() throws {
         let listener = CompilerPluginMessageListener(
             connection: connection,
             messageHandler: PluginProviderMessageHandler(provider: Provider())
         )
         try listener.main()
+    }
+
+    public static func main() throws {
+        try OpenAppleMacrosListener().main()
+    }
+
+    public static var moduleNames: [String] {
+        allModules
     }
 }
 

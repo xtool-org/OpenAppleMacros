@@ -1,7 +1,7 @@
 OBJCOPY ?= llvm-objcopy
 ARCHS ?= x86_64 aarch64
 
-MACRO_MODULES = $(notdir $(wildcard Sources/*Macros))
+MACRO_MODULES = $(sort $(notdir $(wildcard Sources/*Macros)))
 
 all: umbrella-check
 	@$(MAKE) build-archs
@@ -52,7 +52,7 @@ build-server-%:
 	swift build --product OpenAppleMacrosServer --swift-sdk $*-swift-linux-musl -c release
 	$(OBJCOPY) --strip-all .build/out/Products/Release-staticlinux-$*/OpenAppleMacrosServer tmp/server-$*/OpenAppleMacrosServer
 
-UMBRELLA_FILE = Sources/OpenAppleMacrosServer/Generated/All.swift
+UMBRELLA_FILE = Sources/OpenAppleMacrosKit/Generated/All.swift
 UMBRELLA_TMP = tmp/oam-generated/Umbrella.swift
 
 umbrella: umbrella-tmp
@@ -74,6 +74,9 @@ umbrella-tmp:
 	@echo >> $(UMBRELLA_TMP)
 	@echo 'var allMacros: [[any Macro.Type]] { [' >> $(UMBRELLA_TMP)
 	@$(foreach mod,$(MACRO_MODULES),echo '    $(mod).all,' >> $(UMBRELLA_TMP);)
+	@echo '] }' >> $(UMBRELLA_TMP)
+	@echo 'var allModules: [String] { [' >> $(UMBRELLA_TMP)
+	@$(foreach mod,$(MACRO_MODULES),echo '    "$(mod)",' >> $(UMBRELLA_TMP);)
 	@echo '] }' >> $(UMBRELLA_TMP)
 
 clean:

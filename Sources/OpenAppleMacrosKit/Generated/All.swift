@@ -10,3 +10,8 @@ var allMacros: [[any Macro.Type]] { [
     PreviewsMacros.all,
     SwiftUIMacros.all,
 ] }
+var allModules: [String] { [
+    "FoundationModelsMacros",
+    "PreviewsMacros",
+    "SwiftUIMacros",
+] }

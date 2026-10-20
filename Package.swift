@@ -33,6 +33,10 @@ let package = Package(
         .macOS(.v10_15),
     ],
     products: [
+        .library(
+            name: "OpenAppleMacrosKit",
+            targets: ["OpenAppleMacrosKit"]
+        ),
         .executable(
             name: "OpenAppleMacrosServer",
             targets: ["OpenAppleMacrosServer"]
@@ -49,12 +53,18 @@ let package = Package(
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
             ]
         ),
-        .executableTarget(
-            name: "OpenAppleMacrosServer",
+        .target(
+            name: "OpenAppleMacrosKit",
             dependencies: [
                 "OpenAppleMacrosBase",
                 .product(name: "_SwiftCompilerPluginMessageHandling", package: "swift-syntax"),
             ] + macroDependencies
+        ),
+        .executableTarget(
+            name: "OpenAppleMacrosServer",
+            dependencies: [
+                "OpenAppleMacrosKit",
+            ]
         )
     ] + macroTargets
 )
