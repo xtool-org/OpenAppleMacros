@@ -59,6 +59,30 @@ struct EntryMacro: PeerMacro, AccessorMacro {
             ]
         }
 
+        // Like Swift itself, Apple's macro treats a `T?` or `T!` property without an initializer as
+        // defaulting to nil, and spells the key's type as `T?` in both cases. `Optional<T>` still
+        // needs an explicit initializer, as it does for Apple.
+        if binding.initializer == nil, let type = binding.typeAnnotation?.type {
+            let optionalType: TypeSyntax?
+            if type.is(OptionalTypeSyntax.self) {
+                optionalType = type.trimmed
+            } else if let implicitlyUnwrapped = type.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) {
+                optionalType = "\(implicitlyUnwrapped.wrappedType.trimmed)?"
+            } else {
+                optionalType = nil
+            }
+            if let optionalType {
+                return [
+                    """
+                    private struct __Key_\(pattern.identifier.trimmed): \(kind.keyType) {
+                        @SwiftUICore.__EntryDefaultValue
+                        static var defaultValue: \(optionalType) = nil
+                    }
+                    """
+                ]
+            }
+        }
+
         guard let initializer = binding.initializer else {
             let position = binding.endPositionBeforeTrailingTrivia
             context.diagnose(Diagnostic(
