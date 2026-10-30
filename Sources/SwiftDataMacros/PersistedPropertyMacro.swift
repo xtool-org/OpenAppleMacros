@@ -8,8 +8,10 @@ struct PersistedPropertyMacro: PeerMacro, AccessorMacro {
     ) throws -> [DeclSyntax] {
         guard let variable = declaration.as(VariableDeclSyntax.self),
               let binding = variable.bindings.first,
-              let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text else { return [] }
-        let optional = binding.typeAnnotation?.type.is(OptionalTypeSyntax.self) == true ? "?" : ""
+              let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.unescapedIdentifier else { return [] }
+        let type = binding.typeAnnotation?.type
+        let optional = type?.is(OptionalTypeSyntax.self) == true ? "?" :
+            type?.is(ImplicitlyUnwrappedOptionalTypeSyntax.self) == true ? "!" : ""
         let initial = binding.initializer == nil ? "" : " = _SwiftDataNoType()"
         return ["@Transient\nprivate var _\(raw: name): _SwiftDataNoType\(raw: optional)\(raw: initial)"]
     }
@@ -20,7 +22,7 @@ struct PersistedPropertyMacro: PeerMacro, AccessorMacro {
         in context: some MacroExpansionContext
     ) throws -> [AccessorDeclSyntax] {
         guard let variable = declaration.as(VariableDeclSyntax.self),
-              let name = variable.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.text else { return [] }
+              let name = variable.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.unescapedIdentifier else { return [] }
         let transformable = node.attributeName.trimmed.description == "_TransformablePersistedProperty"
         let setter = transformable ? "setTransformableValue" : "setValue"
         let getter = transformable ? "getTransformableValue" : "getValue"

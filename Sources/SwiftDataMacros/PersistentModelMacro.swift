@@ -18,6 +18,9 @@ struct PersistentModelMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
         } else if let value = declaration.as(EnumDeclSyntax.self) {
             name = value.name.text
             context.diagnose(Diagnostic(node: node, message: ModelDiagnostic(message: "'@Model' cannot be applied to enum type '\(name)'")))
+        } else if let value = declaration.as(ActorDeclSyntax.self) {
+            name = value.name.text
+            context.diagnose(Diagnostic(node: node, message: ModelDiagnostic(message: "'@Model' cannot be applied to actor type '\(name)'")))
         } else { return [] }
         if !declaration.memberBlock.members.contains(where: { $0.decl.is(InitializerDeclSyntax.self) }) {
             context.diagnose(Diagnostic(node: node, message: ModelDiagnostic(message: "@Model requires an initializer be provided for '\(name)'")))
@@ -25,7 +28,7 @@ struct PersistentModelMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
         let properties = declaration.memberBlock.members.compactMap { $0.decl.as(VariableDeclSyntax.self) }.filter(\.isPersisted)
         let metadata = properties.flatMap { variable in
             variable.bindings.prefix(1).compactMap { binding -> String? in
-                guard let namePart = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text else { return nil }
+                guard let namePart = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.unescapedIdentifier else { return nil }
                 let initial = binding.initializer?.value.trimmed.description ?? "nil"
                 let attribute = variable.attributes.compactMap { $0.as(AttributeSyntax.self) }.first { ["Attribute", "Relationship"].contains($0.attributeName.trimmed.description) }
                 let options = attribute?.arguments?.trimmed.description
@@ -39,7 +42,7 @@ struct PersistentModelMacro: MemberMacro, MemberAttributeMacro, ExtensionMacro {
                 return "SwiftData.Schema.PropertyMetadata(name: \"\(namePart)\", keypath: \\\(name).\(namePart), defaultValue: \(initial), metadata: \(value))"
             }
         }.joined(separator: ",\n    ")
-        let initProperties = properties.compactMap { $0.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.text }.map { "_\($0) = _SwiftDataNoType()" }.joined(separator: "\n  ")
+        let initProperties = properties.compactMap { $0.bindings.first?.pattern.as(IdentifierPatternSyntax.self)?.identifier.unescapedIdentifier }.map { "_\($0) = _SwiftDataNoType()" }.joined(separator: "\n  ")
         let required = cls?.modifiers.contains { $0.name.tokenKind == .keyword(.final) } == true ? "" : "required "
         let access = cls?.modifiers.contains { $0.name.tokenKind == .keyword(.public) || $0.name.tokenKind == .keyword(.open) } == true ? "public " : ""
         return [
