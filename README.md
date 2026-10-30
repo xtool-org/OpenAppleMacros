@@ -78,17 +78,17 @@ Applies to `AppKit`, `SwiftUI`, `UIKit`, `WidgetKit`
 | `@ReportableMetadataIgnored` | ❌ | |
 | `@ReportableMetadataKey` | ❌ | |
 
-### ❌ SwiftData
+### 🌗 SwiftData
 
 | Macro | Status | Notes |
 | - | - | - |
-| `@Attribute` | ❌ | |
+| `@Attribute` | 🌗 | Common cases supported; diagnostics and edge cases are incomplete |
 | `@Index` | ❌ | |
-| `@Model` | ❌ | |
+| `@Model` | 🌗 | Common class models supported; edge cases and Xcode 27 compatibility are not yet fully verified |
 | `@ModelActor` | ❌ | |
 | `@Query` | ❌ | |
-| `@Relationship` | ❌ | |
-| `@Transient` | ❌ | |
+| `@Relationship` | 🌗 | Basic model metadata supported; diagnostics and edge cases are incomplete |
+| `@Transient` | 🌗 | Basic model properties supported; diagnostics and edge cases are incomplete |
 | `@Unique` | ❌ | |
 
 ### ✅ SwiftUI
