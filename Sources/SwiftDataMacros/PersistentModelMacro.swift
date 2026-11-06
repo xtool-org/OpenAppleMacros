@@ -1,4 +1,3 @@
-import Foundation
 import OpenAppleMacrosBase
 import SwiftDiagnostics
 
@@ -182,7 +181,7 @@ private func diagnoseTransientDefaults(
               !variable.modifiers.contains(where: {
                   $0.name.tokenKind == .keyword(.static) || $0.name.tokenKind == .keyword(.class)
               }),
-              let transientAttribute = variable.attributes.compactMap({ $0.as(AttributeSyntax.self) }).first(where: {
+              variable.attributes.compactMap({ $0.as(AttributeSyntax.self) }).contains(where: {
                   unbackticked($0.attributeName.trimmed.description) == "Transient"
               }) else { continue }
         for binding in variable.bindings {
@@ -222,7 +221,7 @@ private func extraSchemaProperties(of declaration: some DeclGroupSyntax) -> Stri
     var uniqueBlocks: [String] = []
     for member in declaration.memberBlock.members {
         guard let expansion = member.decl.as(MacroExpansionDeclSyntax.self) else { continue }
-        let macroName = unbackticked(expansion.macro.trimmed.description)
+        let macroName = unbackticked(expansion.macroName.trimmed.description)
         switch macroName {
         case "Unique", "SwiftData.Unique":
             uniqueBlocks.append(availabilityBlock(kind: "Unique", expansion: expansion))
