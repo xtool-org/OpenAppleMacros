@@ -26,13 +26,16 @@ struct PersistentModelActorMacro: MemberMacro, ExtensionMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
+        let access: String = declaration.modifiers.contains(where: {
+            $0.name.tokenKind == .keyword(.public)
+        }) ? "public " : ""
         return [
             """
-            nonisolated let modelExecutor: any SwiftData.ModelExecutor
+            \(raw: access)nonisolated let modelExecutor: any SwiftData.ModelExecutor
 
-            nonisolated let modelContainer: SwiftData.ModelContainer
+            \(raw: access)nonisolated let modelContainer: SwiftData.ModelContainer
 
-            init(modelContainer: SwiftData.ModelContainer) {
+            \(raw: access)init(modelContainer: SwiftData.ModelContainer) {
                 let modelContext = ModelContext(modelContainer)
                 self.modelExecutor = DefaultSerialModelExecutor(modelContext: modelContext)
                 self.modelContainer = modelContainer
@@ -68,10 +71,11 @@ struct QueryMacro: AccessorMacro, PeerMacro {
             return []
         }
         let name = identifier.trimmed.text
+        let backing = backingName(name)
         return [
             """
             get {
-                _\(raw: name).wrappedValue
+                \(raw: backing).wrappedValue
             }
             """
         ]
@@ -90,6 +94,7 @@ struct QueryMacro: AccessorMacro, PeerMacro {
             return []
         }
         let name = identifier.trimmed.text
+        let backing = backingName(name)
         let arguments: String
         if case .argumentList(let list) = node.arguments {
             arguments = list.trimmedDescription
@@ -97,7 +102,7 @@ struct QueryMacro: AccessorMacro, PeerMacro {
             arguments = ""
         }
         return [
-            "private(set) var _\(raw: name): SwiftData.Query<\(raw: type).Element, \(raw: type)> = .init(\(raw: arguments))"
+            "private(set) var \(raw: backing): SwiftData.Query<\(raw: type).Element, \(raw: type)> = .init(\(raw: arguments))"
         ]
     }
 }

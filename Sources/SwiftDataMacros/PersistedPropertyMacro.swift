@@ -46,7 +46,7 @@ private struct PersistedVariable {
 private func persistedVariable(_ declaration: some DeclSyntaxProtocol) -> PersistedVariable? {
     guard let variable = declaration.as(VariableDeclSyntax.self),
           let binding = variable.bindings.first,
-          binding.accessorBlock == nil,
+          binding.accessorBlock == nil || hasObserversOnly(binding.accessorBlock!),
           let identifier = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier else {
         return nil
     }
@@ -60,14 +60,15 @@ private func persistedVariable(_ declaration: some DeclSyntaxProtocol) -> Persis
 private func accessors(of declaration: some DeclSyntaxProtocol, transformable: Bool) -> [AccessorDeclSyntax] {
     guard let property = persistedVariable(declaration) else { return [] }
     let name = property.name
+    let backing = backingName(name)
     let read = transformable ? "getTransformableValue" : "getValue"
     let write = transformable ? "setTransformableValue" : "setValue"
     var accessors: [AccessorDeclSyntax] = [
         """
-        @storageRestrictions(accesses: _$backingData, initializes: _\(raw: name))
+        @storageRestrictions(accesses: _$backingData, initializes: \(raw: backing))
         init(initialValue) {
             _$backingData.\(raw: write)(forKey: \\.\(raw: name), to: initialValue)
-            _\(raw: name) = _SwiftDataNoType()
+            \(raw: backing) = _SwiftDataNoType()
         }
         get {
             _$observationRegistrar.access(self, keyPath: \\.\(raw: name))
@@ -103,7 +104,7 @@ private func peer(of declaration: some DeclSyntaxProtocol) -> [DeclSyntax] {
     }
     let initializer = property.binding.initializer != nil ? " = _SwiftDataNoType()" : ""
     return [
-        "@Transient\nprivate var _\(raw: name): _SwiftDataNoType\(raw: optionalSuffix)\(raw: initializer)"
+        "@Transient\nprivate var \(raw: backingName(name)): _SwiftDataNoType\(raw: optionalSuffix)\(raw: initializer)"
     ]
 }
 

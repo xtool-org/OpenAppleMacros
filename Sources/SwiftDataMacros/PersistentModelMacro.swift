@@ -181,9 +181,7 @@ private func diagnoseTransientDefaults(
               !variable.modifiers.contains(where: {
                   $0.name.tokenKind == .keyword(.static) || $0.name.tokenKind == .keyword(.class)
               }),
-              variable.attributes.compactMap({ $0.as(AttributeSyntax.self) }).contains(where: {
-                  unbackticked($0.attributeName.trimmed.description) == "Transient"
-              }) else { continue }
+              hasTransientAttribute(variable) else { continue }
         for binding in variable.bindings {
             guard binding.accessorBlock == nil,
                   binding.initializer == nil,
@@ -191,6 +189,7 @@ private func diagnoseTransientDefaults(
             let type = binding.typeAnnotation?.type.trimmed
             let isOptional = type?.as(OptionalTypeSyntax.self) != nil
                 || type?.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) != nil
+                || type?.as(IdentifierTypeSyntax.self)?.name.trimmed.text == "Optional"
             if !isOptional {
                 context.diagnose(Diagnostic(
                     node: variable,
@@ -271,7 +270,7 @@ private func storedVariables(in member: MemberBlockItemSyntax) -> [StoredVariabl
               $0.name.tokenKind == .keyword(.static) || $0.name.tokenKind == .keyword(.class)
           }) else { return [] }
     return variable.bindings.compactMap { binding in
-        guard binding.accessorBlock == nil,
+        guard binding.accessorBlock == nil || hasObserversOnly(binding.accessorBlock!),
               let name = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier else { return nil }
         return StoredVariable(variable: variable, binding: binding, name: name.text)
     }
@@ -285,15 +284,30 @@ func isPersistedProperty(_ member: some SyntaxProtocol) -> Bool {
           !hasTransientAttribute(variable),
           !variable.bindings.isEmpty,
           variable.bindings.allSatisfy({ binding in
-              binding.accessorBlock == nil && binding.pattern.is(IdentifierPatternSyntax.self)
+              (binding.accessorBlock == nil || hasObserversOnly(binding.accessorBlock!))
+                  && binding.pattern.is(IdentifierPatternSyntax.self)
           }) else { return false }
     return true
+}
+
+/// A property with only `willSet`/`didSet` observers is still stored.
+func hasObserversOnly(_ accessorBlock: AccessorBlockSyntax) -> Bool {
+    switch accessorBlock.accessors {
+    case .accessors(let list):
+        return !list.isEmpty && list.allSatisfy { accessor in
+            accessor.accessorSpecifier.tokenKind == .keyword(.willSet)
+                || accessor.accessorSpecifier.tokenKind == .keyword(.didSet)
+        }
+    case .getter:
+        return false
+    }
 }
 
 private func hasTransientAttribute(_ variable: VariableDeclSyntax) -> Bool {
     variable.attributes.contains(where: { attribute in
         guard let attribute = attribute.as(AttributeSyntax.self) else { return false }
         return unbackticked(attribute.attributeName.trimmed.description) == "Transient"
+            || unbackticked(attribute.attributeName.trimmed.description) == "SwiftData.Transient"
     })
 }
 
@@ -324,4 +338,9 @@ private func schemaMetadata(of variable: VariableDeclSyntax) -> String? {
 func unbackticked(_ name: String) -> String {
     guard name.hasPrefix("`"), name.hasSuffix("`"), name.count >= 2 else { return name }
     return String(name.dropFirst().dropLast())
+}
+
+/// Backing property name: escapes are dropped so the declaration is a valid identifier.
+func backingName(_ name: String) -> String {
+    "_" + unbackticked(name)
 }
