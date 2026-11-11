@@ -15,6 +15,13 @@ let macroTargets: [Target] = [
         dependencies: ["OpenAppleMacrosBase"],
     ),
     .target(
+        name: "SwiftDataMacros",
+        dependencies: [
+            "OpenAppleMacrosBase",
+            .product(name: "SwiftDiagnostics", package: "swift-syntax"),
+        ],
+    ),
+    .target(
         name: "SwiftUIMacros",
         dependencies: [
             "OpenAppleMacrosBase",

@@ -78,18 +78,20 @@ Applies to `AppKit`, `SwiftUI`, `UIKit`, `WidgetKit`
 | `@ReportableMetadataIgnored` | ❌ | |
 | `@ReportableMetadataKey` | ❌ | |
 
-### ❌ SwiftData
+### ✅ SwiftData
 
 | Macro | Status | Notes |
 | - | - | - |
-| `@Attribute` | ❌ | |
-| `@Index` | ❌ | |
-| `@Model` | ❌ | |
-| `@ModelActor` | ❌ | |
-| `@Query` | ❌ | |
-| `@Relationship` | ❌ | |
-| `@Transient` | ❌ | |
-| `@Unique` | ❌ | |
+| `@Attribute` | ✅ | |
+| `@Index` | ✅ | Expands to empty output; contributes to `schemaMetadata` |
+| `@Model` | ✅ | |
+| `@ModelActor` | ✅ | |
+| `@Query` | ✅ | |
+| `@Relationship` | ✅ | |
+| `@Transient` | ✅ | |
+| `@Unique` | ✅ | Expands to empty output; contributes to `schemaMetadata` |
+| `_PersistedProperty` | ✅ | |
+| `_TransformablePersistedProperty` | ✅ | |
 
 ### ✅ SwiftUI
 
