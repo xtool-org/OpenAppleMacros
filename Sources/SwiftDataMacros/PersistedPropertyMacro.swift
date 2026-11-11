@@ -60,6 +60,7 @@ private func persistedVariable(_ declaration: some DeclSyntaxProtocol) -> Persis
 private func accessors(of declaration: some DeclSyntaxProtocol, transformable: Bool) -> [AccessorDeclSyntax] {
     guard let property = persistedVariable(declaration) else { return [] }
     let name = property.name
+    let keyName = unbackticked(name)
     let backing = backingName(name)
     let read = transformable ? "getTransformableValue" : "getValue"
     let write = transformable ? "setTransformableValue" : "setValue"
@@ -67,12 +68,14 @@ private func accessors(of declaration: some DeclSyntaxProtocol, transformable: B
         """
         @storageRestrictions(accesses: _$backingData, initializes: \(raw: backing))
         init(initialValue) {
-            _$backingData.\(raw: write)(forKey: \\.\(raw: name), to: initialValue)
+            _$backingData.\(raw: write)(forKey: \\.\(raw: keyName), to: initialValue)
             \(raw: backing) = _SwiftDataNoType()
         }
+        """,
+        """
         get {
-            _$observationRegistrar.access(self, keyPath: \\.\(raw: name))
-            return self.\(raw: read)(forKey: \\.\(raw: name))
+            _$observationRegistrar.access(self, keyPath: \\.\(raw: keyName))
+            return self.\(raw: read)(forKey: \\.\(raw: keyName))
         }
         """
     ]
@@ -80,8 +83,8 @@ private func accessors(of declaration: some DeclSyntaxProtocol, transformable: B
         accessors.append(
             """
             set {
-                _$observationRegistrar.withMutation(of: self, keyPath: \\.\(raw: name)) {
-                    self.\(raw: write)(forKey: \\.\(raw: name), to: newValue)
+                _$observationRegistrar.withMutation(of: self, keyPath: \\.\(raw: keyName)) {
+                    self.\(raw: write)(forKey: \\.\(raw: keyName), to: newValue)
                 }
             }
             """

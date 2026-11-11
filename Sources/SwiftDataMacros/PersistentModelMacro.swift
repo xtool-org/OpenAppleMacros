@@ -189,7 +189,6 @@ private func diagnoseTransientDefaults(
             let type = binding.typeAnnotation?.type.trimmed
             let isOptional = type?.as(OptionalTypeSyntax.self) != nil
                 || type?.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) != nil
-                || type?.as(IdentifierTypeSyntax.self)?.name.trimmed.text == "Optional"
             if !isOptional {
                 context.diagnose(Diagnostic(
                     node: variable,
@@ -307,7 +306,6 @@ private func hasTransientAttribute(_ variable: VariableDeclSyntax) -> Bool {
     variable.attributes.contains(where: { attribute in
         guard let attribute = attribute.as(AttributeSyntax.self) else { return false }
         return unbackticked(attribute.attributeName.trimmed.description) == "Transient"
-            || unbackticked(attribute.attributeName.trimmed.description) == "SwiftData.Transient"
     })
 }
 
@@ -317,9 +315,9 @@ private func schemaMetadata(of variable: VariableDeclSyntax) -> String? {
         let attributeName = unbackticked(attribute.attributeName.trimmed.description)
         let macroName: String
         switch attributeName {
-        case "Attribute", "SwiftData.Attribute":
+        case "Attribute":
             macroName = "SwiftData.Schema.Attribute"
-        case "Relationship", "SwiftData.Relationship":
+        case "Relationship":
             macroName = "SwiftData.Schema.Relationship"
         default:
             continue
